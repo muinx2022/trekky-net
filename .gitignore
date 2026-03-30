@@ -14,5 +14,6 @@ web/node_modules/
 web/out/
 *.log
 .env
+.docker-config/
 web/.env.local
 django/admin/.env

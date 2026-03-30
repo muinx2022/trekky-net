@@ -606,17 +606,33 @@ async function getAllEntriesForSitemap(path: string): Promise<SitemapEntry[]> {
 }
 
 export async function getPostsForSitemap() {
-  return getAllEntriesForSitemap("/public/posts/?ordering=-updated_at&page_size=1000");
+  try {
+    return await getAllEntriesForSitemap("/public/posts/?ordering=-updated_at&page_size=1000");
+  } catch {
+    return [];
+  }
 }
 
 export async function getCategoriesForSitemap() {
-  return getAllEntriesForSitemap("/public/categories/?ordering=-updated_at&page_size=1000");
+  try {
+    return await getAllEntriesForSitemap("/public/categories/?ordering=-updated_at&page_size=1000");
+  } catch {
+    return [];
+  }
 }
 
 export async function getTagsForSitemap() {
-  return getAllEntriesForSitemap("/public/tags/?ordering=-updated_at&page_size=1000");
+  try {
+    return await getAllEntriesForSitemap("/public/tags/?ordering=-updated_at&page_size=1000");
+  } catch {
+    return [];
+  }
 }
 
 export async function getPagesForSitemap() {
-  return getAllEntriesForSitemap("/public/pages/?type=footer&ordering=-updated_at&page_size=1000");
+  try {
+    return await getAllEntriesForSitemap("/public/pages/?type=footer&ordering=-updated_at&page_size=1000");
+  } catch {
+    return [];
+  }
 }

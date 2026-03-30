@@ -4,13 +4,39 @@ from pathlib import Path
 from datetime import timedelta
 from dotenv import load_dotenv
 
-BASE_DIR = Path(__file__).resolve().parent.parent
-PROJECT_ROOT = BASE_DIR.parent.parent
-DJANGO_ROOT = BASE_DIR.parent
-ADMIN_APP_DIR = DJANGO_ROOT / "admin-app"
+SETTINGS_DIR = Path(__file__).resolve().parent
+BASE_DIR = SETTINGS_DIR.parent
+
+_project_root_candidates = [
+    BASE_DIR.parent.parent,
+    BASE_DIR.parent,
+    BASE_DIR,
+]
+PROJECT_ROOT = next(
+    (
+        candidate
+        for candidate in _project_root_candidates
+        if (candidate / "web").exists() or (candidate / ".env").exists()
+    ),
+    BASE_DIR,
+)
+ADMIN_APP_DIR = next(
+    (
+        candidate
+        for candidate in (
+            BASE_DIR / "admin-app",
+            BASE_DIR.parent / "admin-app",
+        )
+        if candidate.exists()
+    ),
+    BASE_DIR / "admin-app",
+)
 WEB_DIR = PROJECT_ROOT / "web"
 
-load_dotenv(PROJECT_ROOT / ".env")
+for dotenv_path in (PROJECT_ROOT / ".env", BASE_DIR / ".env"):
+    if dotenv_path.exists():
+        load_dotenv(dotenv_path)
+        break
 UPLOAD_PROVIDER = os.getenv("UPLOAD_PROVIDER", "local").lower()
 USE_CLOUDINARY = UPLOAD_PROVIDER == "cloudinary"
 
@@ -109,7 +135,7 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 LANGUAGE_CODE = "vi"
-TIME_ZONE = os.getenv("DJANGO_TIME_ZONE", "Asia/Saigon")
+TIME_ZONE = os.getenv("DJANGO_TIME_ZONE", "Asia/Ho_Chi_Minh")
 
 USE_I18N = True
 USE_TZ = True
