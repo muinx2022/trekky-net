@@ -227,6 +227,7 @@ class PublicTagViewSet(viewsets.ReadOnlyModelViewSet):
     lookup_field = "document_id"
     filterset_fields = ("slug",)
     permission_classes = [AllowAny]
+    pagination_class = PublicPagination
     queryset = (
         Tag.objects.annotate(
             published_post_count=Count("posts", filter=Q(posts__is_published=True), distinct=True)
