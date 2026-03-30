@@ -341,13 +341,15 @@ export async function getTopTags(limit: number = 12) {
   const payload = await djangoFetch<DRFPaginatedList<DjangoTag> | DjangoTag[]>(
     `/public/tags/?page_size=${limit}`,
   );
-  return extractList(payload).map((t) => ({
-    id: 0,
-    documentId: t.document_id,
-    name: t.name,
-    slug: t.slug,
-    description: t.description,
-  })) as Tag[];
+  return extractList(payload)
+    .slice(0, limit)
+    .map((t) => ({
+      id: 0,
+      documentId: t.document_id,
+      name: t.name,
+      slug: t.slug,
+      description: t.description,
+    })) as Tag[];
 }
 
 export async function getTopPosts(limit: number = 10) {
