@@ -32,6 +32,10 @@ services:
       MEILI_ENV: production
     volumes:
       - meili_data:/meili_data
+    networks:
+      default:
+        aliases:
+          - trekky-net-meilisearch
 
   api:
     image: ${API_IMAGE}
@@ -43,7 +47,7 @@ services:
       DB_PORT: 5432
       CELERY_BROKER_URL: redis://redis:6379/0
       CELERY_RESULT_BACKEND: redis://redis:6379/0
-      MEILISEARCH_URL: http://meilisearch:7700
+      MEILISEARCH_URL: http://trekky-net-meilisearch:7700
     depends_on:
       postgres:
         condition: service_healthy
@@ -71,7 +75,7 @@ services:
       DB_PORT: 5432
       CELERY_BROKER_URL: redis://redis:6379/0
       CELERY_RESULT_BACKEND: redis://redis:6379/0
-      MEILISEARCH_URL: http://meilisearch:7700
+      MEILISEARCH_URL: http://trekky-net-meilisearch:7700
     depends_on:
       postgres:
         condition: service_healthy
@@ -95,7 +99,7 @@ services:
       DB_PORT: 5432
       CELERY_BROKER_URL: redis://redis:6379/0
       CELERY_RESULT_BACKEND: redis://redis:6379/0
-      MEILISEARCH_URL: http://meilisearch:7700
+      MEILISEARCH_URL: http://trekky-net-meilisearch:7700
     depends_on:
       postgres:
         condition: service_healthy
