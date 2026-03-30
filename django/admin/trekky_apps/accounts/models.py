@@ -13,7 +13,7 @@ class UserRole(models.TextChoices):
 
 class User(AbstractUser):
     email = models.EmailField(unique=True)
-    document_id = models.CharField(max_length=24, unique=True, db_index=True, blank=True)
+    document_id = models.CharField(max_length=24, unique=True, blank=True)
     role = models.CharField(max_length=32, choices=UserRole.choices, default=UserRole.USER)
     bio = models.TextField(blank=True)
     avatar = models.ImageField(upload_to="avatars/", blank=True, null=True)

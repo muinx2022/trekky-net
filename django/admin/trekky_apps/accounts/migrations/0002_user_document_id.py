@@ -25,12 +25,12 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name="user",
             name="document_id",
-            field=models.CharField(blank=True, db_index=True, max_length=24, null=True),
+            field=models.CharField(blank=True, max_length=24, null=True),
         ),
         migrations.RunPython(backfill_user_document_ids, migrations.RunPython.noop),
         migrations.AlterField(
             model_name="user",
             name="document_id",
-            field=models.CharField(blank=True, db_index=True, max_length=24, unique=True),
+            field=models.CharField(blank=True, max_length=24, unique=True),
         ),
     ]
