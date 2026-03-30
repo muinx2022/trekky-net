@@ -345,7 +345,7 @@ class PostListView(AdminAppListView):
     page_subtitle = "Manage editorial content and preserve public permalink identifiers."
     create_url_name = "admin_app:post-create"
     create_label = "New Post"
-    columns = ["Title", "Author", "Cmt", "Published", "Updated", "Actions"]
+    columns = ["Title", "Cmt", "Published", "Updated", "Actions"]
     active_nav = "posts"
     search_fields = ("title", "slug", "document_id")
     detail_url_name = "admin_app:post-update"

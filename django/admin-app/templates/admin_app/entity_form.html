@@ -4,10 +4,42 @@
 {% block page_title %}{{ page_title }}{% endblock %}
 {% block extra_js %}
 <script type="module">
-  import { Editor } from "https://esm.sh/@tiptap/core@2.26.1";
+  import { Editor, Node, mergeAttributes } from "https://esm.sh/@tiptap/core@2.26.1";
   import StarterKit from "https://esm.sh/@tiptap/starter-kit@2.26.1";
   import Link from "https://esm.sh/@tiptap/extension-link@2.26.1";
+  import Image from "https://esm.sh/@tiptap/extension-image@2.26.1";
   import Placeholder from "https://esm.sh/@tiptap/extension-placeholder@2.26.1";
+  import Youtube from "https://esm.sh/@tiptap/extension-youtube@2.26.1";
+
+  const HtmlVideo = Node.create({
+    name: "htmlVideo",
+    group: "block",
+    atom: true,
+    draggable: true,
+    selectable: true,
+    addAttributes() {
+      return {
+        src: { default: null },
+        controls: { default: true },
+        poster: { default: null },
+        preload: { default: "metadata" },
+      };
+    },
+    parseHTML() {
+      return [{ tag: "video" }];
+    },
+    renderHTML({ HTMLAttributes }) {
+      return ["video", mergeAttributes({ controls: "true" }, HTMLAttributes)];
+    },
+    addCommands() {
+      return {
+        setHtmlVideo:
+          (attributes) =>
+          ({ commands }) =>
+            commands.insertContent({ type: this.name, attrs: attributes }),
+      };
+    },
+  });
 
   function trekkySlugify(value) {
     return String(value || "")
@@ -49,7 +81,146 @@
     activeCount: null,
     activeEmpty: null,
     targetMode: "multiple",
+    insertionType: null,
+    activeEditor: null,
   };
+
+  function isVideoAsset(item) {
+    return item?.resource_type === "video" || String(item?.mime_type || "").startsWith("video/");
+  }
+
+  function syncEditorTextarea(editor) {
+    const textarea = editor?.options?.element;
+    if (textarea) {
+      textarea.value = editor.getHTML();
+    }
+  }
+
+  function openEditorModal(options = {}) {
+    const modalElement = document.getElementById("editorActionModal");
+    if (!modalElement || !window.bootstrap) {
+      return Promise.resolve({ confirmed: false, value: "" });
+    }
+
+    const titleNode = modalElement.querySelector("[data-editor-modal-title]");
+    const messageNode = modalElement.querySelector("[data-editor-modal-message]");
+    const inputShell = modalElement.querySelector("[data-editor-modal-input-shell]");
+    const inputNode = modalElement.querySelector("[data-editor-modal-input]");
+    const cancelButton = modalElement.querySelector("[data-editor-modal-cancel]");
+    const confirmButton = modalElement.querySelector("[data-editor-modal-confirm]");
+    const modal = window.bootstrap.Modal.getOrCreateInstance(modalElement);
+
+    titleNode.textContent = options.title || "Confirm";
+    messageNode.textContent = options.message || "";
+    confirmButton.textContent = options.confirmText || "Confirm";
+    cancelButton.textContent = options.cancelText || "Cancel";
+
+    if (options.input) {
+      inputShell.classList.remove("d-none");
+      inputNode.value = options.value || "";
+      inputNode.placeholder = options.placeholder || "";
+    } else {
+      inputShell.classList.add("d-none");
+      inputNode.value = "";
+      inputNode.placeholder = "";
+    }
+
+    return new Promise((resolve) => {
+      let settled = false;
+
+      const cleanup = () => {
+        confirmButton.removeEventListener("click", handleConfirm);
+        cancelButton.removeEventListener("click", handleCancel);
+        modalElement.removeEventListener("hidden.bs.modal", handleHidden);
+        inputNode.removeEventListener("keydown", handleKeydown);
+      };
+
+      const finish = (payload) => {
+        if (settled) return;
+        settled = true;
+        cleanup();
+        resolve(payload);
+      };
+
+      const handleConfirm = () => {
+        finish({ confirmed: true, value: inputNode.value });
+        modal.hide();
+      };
+
+      const handleCancel = () => {
+        finish({ confirmed: false, value: inputNode.value });
+        modal.hide();
+      };
+
+      const handleHidden = () => {
+        finish({ confirmed: false, value: inputNode.value });
+      };
+
+      const handleKeydown = (event) => {
+        if (event.key === "Enter" && options.input) {
+          event.preventDefault();
+          handleConfirm();
+        }
+      };
+
+      confirmButton.addEventListener("click", handleConfirm);
+      cancelButton.addEventListener("click", handleCancel);
+      modalElement.addEventListener("hidden.bs.modal", handleHidden);
+      inputNode.addEventListener("keydown", handleKeydown);
+
+      modal.show();
+      if (options.input) {
+        window.setTimeout(() => inputNode.focus(), 120);
+      } else {
+        window.setTimeout(() => confirmButton.focus(), 120);
+      }
+    });
+  }
+
+  function openEditorPrompt(options = {}) {
+    return openEditorModal({ ...options, input: true });
+  }
+
+  function openEditorNotice(options = {}) {
+    return openEditorModal({
+      title: options.title || "Notice",
+      message: options.message || "",
+      confirmText: options.confirmText || "OK",
+      cancelText: options.cancelText || "Close",
+      input: false,
+    });
+  }
+
+  function insertSelectedMediaIntoEditor() {
+    if (!mediaPickerState.activeEditor || !mediaPickerState.insertionType || !mediaPickerState.selectedItems.length) return;
+    const editor = mediaPickerState.activeEditor;
+    const item = mediaPickerState.selectedItems[0];
+
+    if (mediaPickerState.insertionType === "image") {
+      editor.chain().focus().setImage({
+        src: item.url,
+        alt: item.original_filename || "Image",
+      }).run();
+    }
+
+    if (mediaPickerState.insertionType === "video") {
+      if (!isVideoAsset(item)) {
+        openEditorNotice({
+          title: "Invalid selection",
+          message: "Please select a video asset from the media library.",
+          confirmText: "OK",
+          cancelText: "Close",
+        });
+        return;
+      }
+      editor.chain().focus().setHtmlVideo({
+        src: item.url,
+        controls: true,
+      }).run();
+    }
+
+    syncEditorTextarea(editor);
+  }
 
   function syncMediaInput() {
     if (!mediaPickerState.activeInput) return;
@@ -541,6 +712,8 @@
         mediaPickerState.activeCount = document.getElementById(countId);
         mediaPickerState.activeEmpty = document.getElementById(emptyId);
         mediaPickerState.targetMode = mode;
+        mediaPickerState.insertionType = null;
+        mediaPickerState.activeEditor = null;
         const existingItems = mediaPickerState.activePreview?.querySelectorAll("[data-media-item-json]") || [];
         mediaPickerState.selectedItems = Array.from(existingItems).map((node) => JSON.parse(node.getAttribute("data-media-item-json") || "{}"));
         renderMediaPreview();
@@ -563,7 +736,11 @@
       if (nextCursor) loadMediaPickerAssets(nextCursor);
     });
     document.querySelector("[data-media-picker-done]")?.addEventListener("click", () => {
-      renderMediaPreview();
+      if (mediaPickerState.insertionType) {
+        insertSelectedMediaIntoEditor();
+      } else {
+        renderMediaPreview();
+      }
       bootstrapModal?.hide();
     });
   }
@@ -593,6 +770,7 @@
       if (action === "h2") isActive = editor.isActive("heading", { level: 2 });
       if (action === "h3") isActive = editor.isActive("heading", { level: 3 });
       if (action === "link") isActive = editor.isActive("link");
+      if (action === "youtube") isActive = editor.isActive("youtube");
       button.classList.toggle("active", isActive);
     });
   }
@@ -618,6 +796,9 @@
       ["bi-blockquote-left", "Blockquote", "blockquote"],
       ["bi-type-h2", "Heading 2", "h2"],
       ["bi-type-h3", "Heading 3", "h3"],
+      ["bi-image", "Insert image", "image"],
+      ["bi-film", "Insert video", "video"],
+      ["bi-youtube", "Embed YouTube", "youtube"],
       ["bi-link-45deg", "Link", "link"],
       ["bi-arrow-counterclockwise", "Undo", "undo"],
       ["bi-arrow-clockwise", "Redo", "redo"],
@@ -635,6 +816,15 @@
       extensions: [
         StarterKit,
         Link.configure({ openOnClick: false }),
+        Image,
+        HtmlVideo,
+        Youtube.configure({
+          controls: true,
+          nocookie: true,
+          modestBranding: true,
+          width: 840,
+          height: 472,
+        }),
         Placeholder.configure({
           placeholder: textarea.dataset.tiptapPlaceholder || "Start writing...",
         }),
@@ -656,7 +846,7 @@
 
     setActiveStates(editor, toolbar);
 
-    toolbar.addEventListener("click", (event) => {
+    toolbar.addEventListener("click", async (event) => {
       const button = event.target.closest("[data-action]");
       if (!button) return;
       const action = button.dataset.action;
@@ -671,15 +861,59 @@
       if (action === "h3") chain.toggleHeading({ level: 3 }).run();
       if (action === "undo") chain.undo().run();
       if (action === "redo") chain.redo().run();
+      if (action === "image" || action === "video") {
+        mediaPickerState.activeInput = null;
+        mediaPickerState.activePreview = null;
+        mediaPickerState.activeCount = null;
+        mediaPickerState.activeEmpty = null;
+        mediaPickerState.targetMode = "single";
+        mediaPickerState.insertionType = action;
+        mediaPickerState.activeEditor = editor;
+        mediaPickerState.selectedItems = [];
+        const typeField = document.querySelector("[data-media-picker-type]");
+        if (typeField) {
+          typeField.value = action === "video" ? "video" : "image";
+        }
+        loadMediaPickerFolders(document.querySelector("[data-media-picker-folder]")?.value || "");
+        loadMediaPickerAssets();
+        const modal = window.bootstrap ? window.bootstrap.Modal.getOrCreateInstance(mediaPickerModal) : null;
+        modal?.show();
+        return;
+      }
+      if (action === "youtube") {
+        const previousUrl = editor.getAttributes("youtube").src || "";
+        const result = await openEditorPrompt({
+          title: "Embed YouTube",
+          message: "Paste a YouTube URL to embed it in the content.",
+          value: previousUrl,
+          placeholder: "https://www.youtube.com/watch?v=...",
+          confirmText: "Embed",
+          cancelText: "Cancel",
+        });
+        if (!result.confirmed || !result.value.trim()) return;
+        editor.chain().focus().setYoutubeVideo({
+          src: result.value.trim(),
+          width: 840,
+          height: 472,
+        }).run();
+        return;
+      }
       if (action === "link") {
         const previousUrl = editor.getAttributes("link").href || "";
-        const url = window.prompt("Enter URL", previousUrl);
-        if (url === null) return;
-        if (!url.trim()) {
+        const result = await openEditorPrompt({
+          title: "Insert Link",
+          message: "Enter a URL for the selected text. Leave it empty to remove the link.",
+          value: previousUrl,
+          placeholder: "https://example.com",
+          confirmText: "Apply",
+          cancelText: "Cancel",
+        });
+        if (!result.confirmed) return;
+        if (!result.value.trim()) {
           editor.chain().focus().unsetLink().run();
           return;
         }
-        editor.chain().focus().extendMarkRange("link").setLink({ href: url.trim() }).run();
+        editor.chain().focus().extendMarkRange("link").setLink({ href: result.value.trim() }).run();
       }
     });
 
@@ -844,6 +1078,27 @@
       <div class="modal-footer">
         <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
         <button type="button" class="btn btn-primary" data-media-picker-done>Use selected assets</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="editorActionModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header">
+        <h5 class="modal-title" data-editor-modal-title>Confirm</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <p class="text-secondary mb-3" data-editor-modal-message></p>
+        <div class="d-none" data-editor-modal-input-shell>
+          <input type="text" class="form-control" data-editor-modal-input>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-editor-modal-cancel data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary" data-editor-modal-confirm>Confirm</button>
       </div>
     </div>
   </div>

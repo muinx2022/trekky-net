@@ -234,6 +234,20 @@
   text-decoration: underline;
 }
 
+.tiptap-prose img,
+.tiptap-prose video,
+.tiptap-prose iframe {
+  display: block;
+  max-width: 100%;
+  margin: 1rem auto;
+  border-radius: 0.85rem;
+}
+
+.tiptap-prose video,
+.tiptap-prose iframe {
+  width: 100%;
+}
+
 .settings-shell {
   overflow: hidden;
 }

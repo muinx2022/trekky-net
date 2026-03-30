@@ -158,8 +158,7 @@
         {% for item in items %}
           <tr{% if active_nav == "posts" %} class="admin-post-row"{% endif %}>
             {% if active_nav == "posts" %}
-              <td data-label="Title" class="admin-table-primary-cell"><div class="fw-semibold"><a href="{% url detail_url_name item.document_id %}" class="text-decoration-none">{{ item.title }}</a></div><div class="small text-secondary">{{ item.slug }}</div></td>
-              <td data-label="Author" class="admin-post-mobile-hidden">{{ item.author|default:"-" }}</td>
+              <td data-label="Title" class="admin-table-primary-cell"><div class="fw-semibold"><a href="{% url detail_url_name item.document_id %}" class="text-decoration-none">{{ item.title }}</a></div><div class="small text-secondary">{{ item.slug }}</div><div class="small text-secondary">{% if item.author %}By {{ item.author }}{% else %}No author{% endif %}</div></td>
               <td data-label="Comments" class="admin-post-mobile-hidden">{{ item.comment_count|default:0 }}</td>
               <td data-label="Published" class="admin-post-status-cell">
                 <form method="post" action="{% url 'admin_app:post-toggle-status' item.document_id %}" class="d-inline-flex align-items-center">

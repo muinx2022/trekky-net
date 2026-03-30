@@ -1,4 +1,24 @@
 services:
+  deploy-listener:
+    build:
+      context: .
+      dockerfile: Dockerfile.deploy-listener
+    container_name: trekky-deploy-listener
+    restart: unless-stopped
+    environment:
+      DEPLOY_HOST: 0.0.0.0
+      DEPLOY_PORT: 8787
+      DEPLOY_WEBHOOK_TOKEN: ${DEPLOY_WEBHOOK_TOKEN}
+      DEPLOY_SCRIPT: /workspace/deploy.sh
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./:/workspace
+    networks:
+      default: {}
+      shared-network:
+        aliases:
+          - trekky-deploy-listener
+
   postgres:
     image: postgres:16-alpine
     restart: unless-stopped
