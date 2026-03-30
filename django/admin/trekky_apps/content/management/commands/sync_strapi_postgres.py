@@ -431,15 +431,19 @@ class Command(BaseCommand):
                         alt_text=file_row["alternative_text"] or "",
                         sort_order=sort_order,
                     )
-                    media_asset.file.open("rb")
                     try:
-                        post_asset.file.save(
-                            Path(media_asset.file.name).name,
-                            ContentFile(media_asset.file.read()),
-                            save=False,
-                        )
-                    finally:
-                        media_asset.file.close()
+                        media_asset.file.open("rb")
+                        try:
+                            post_asset.file.save(
+                                Path(media_asset.file.name).name,
+                                ContentFile(media_asset.file.read()),
+                                save=False,
+                            )
+                        finally:
+                            media_asset.file.close()
+                    except OSError:
+                        filename, content = self.download_media_content(file_row["url"], file_row["name"], media_timeout)
+                        post_asset.file.save(filename, ContentFile(content), save=False)
                     post_asset.save()
                     created_links += 1
 
@@ -454,10 +458,7 @@ class Command(BaseCommand):
         if not url:
             raise CommandError(f"Missing URL for Strapi file {file_row['id']}")
 
-        with urlopen(url, timeout=media_timeout) as response:
-            content = response.read()
-
-        filename = file_row["name"] or Path(urlparse(url).path).name or f"strapi-{file_row['id']}"
+        filename, content = self.download_media_content(url, file_row["name"], media_timeout, file_row["id"])
         media_asset = MediaAsset(
             document_id=(file_row["document_id"] or "")[:24],
             alt_text=file_row["alternative_text"] or "",
@@ -472,6 +473,12 @@ class Command(BaseCommand):
         media_asset.file.save(filename, ContentFile(content), save=False)
         media_asset.save()
         return media_asset, True
+
+    def download_media_content(self, url: str, preferred_name: str | None, media_timeout: int, file_id: int | None = None):
+        with urlopen(url, timeout=media_timeout) as response:
+            content = response.read()
+        filename = preferred_name or Path(urlparse(url).path).name or f"strapi-{file_id or 'file'}"
+        return filename, content
 
     @staticmethod
     def normalize_size(value, fallback: int):
