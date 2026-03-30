@@ -227,7 +227,13 @@ class PublicTagViewSet(viewsets.ReadOnlyModelViewSet):
     lookup_field = "document_id"
     filterset_fields = ("slug",)
     permission_classes = [AllowAny]
-    queryset = Tag.objects.all()
+    queryset = (
+        Tag.objects.annotate(
+            published_post_count=Count("posts", filter=Q(posts__is_published=True), distinct=True)
+        )
+        .filter(published_post_count__gt=0)
+        .order_by("-published_post_count", "name")
+    )
 
 
 class CommentViewSet(viewsets.ModelViewSet):

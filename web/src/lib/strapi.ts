@@ -339,7 +339,7 @@ export async function getTopLevelCategories() {
 
 export async function getTopTags(limit: number = 12) {
   const payload = await djangoFetch<DRFPaginatedList<DjangoTag> | DjangoTag[]>(
-    `/public/tags/?ordering=-updated_at&page_size=${limit}`,
+    `/public/tags/?page_size=${limit}`,
   );
   return extractList(payload).map((t) => ({
     id: 0,
