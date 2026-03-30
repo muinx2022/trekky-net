@@ -31,6 +31,7 @@ The new `trekky-net` stack is already running on the VPS and exposes stable shar
 3. Verify environment values in `~/projects/trekky-net/.env`:
 
    - `DJANGO_ALLOWED_HOSTS`
+     Include internal API hostnames like `trekky-net-api` and `api`.
    - `DJANGO_CORS_ALLOWED_ORIGINS`
    - `DJANGO_CSRF_TRUSTED_ORIGINS`
    - `FRONTEND_URL`
