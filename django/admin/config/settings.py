@@ -205,6 +205,8 @@ STORAGES = {
         "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
     },
 }
+DEFAULT_FILE_STORAGE = STORAGES["default"]["BACKEND"]
+STATICFILES_STORAGE = STORAGES["staticfiles"]["BACKEND"]
 
 if USE_CLOUDINARY:
     CLOUDINARY_STORAGE = {
@@ -216,6 +218,7 @@ if USE_CLOUDINARY:
     STORAGES["default"] = {
         "BACKEND": "cloudinary_storage.storage.MediaCloudinaryStorage",
     }
+    DEFAULT_FILE_STORAGE = STORAGES["default"]["BACKEND"]
     MEDIA_URL = os.getenv(
         "CLOUDINARY_MEDIA_URL",
         f"https://res.cloudinary.com/{CLOUDINARY_STORAGE['CLOUD_NAME']}/",
