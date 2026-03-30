@@ -92,17 +92,33 @@ class Command(BaseCommand):
             cur.execute(query)
             return cur.fetchall()
 
+    def column_exists(self, conn, table_name: str, column_name: str) -> bool:
+        rows = self.fetch_all(
+            conn,
+            f"""
+            select 1
+            from information_schema.columns
+            where table_schema = 'public'
+              and table_name = '{table_name}'
+              and column_name = '{column_name}'
+            limit 1
+            """,
+        )
+        return bool(rows)
+
     def sync_users(self, conn):
         role_by_user_id = defaultdict(lambda: "user")
+        role_column = "code" if self.column_exists(conn, "up_roles", "code") else "type"
         for row in self.fetch_all(
             conn,
-            """
-            select l.user_id, r.code
+            f"""
+            select l.user_id, r.{role_column} as role_code
             from up_users_role_lnk l
             join up_roles r on r.id = l.role_id
             """,
         ):
-            role_by_user_id[row["user_id"]] = "user" if row["code"] in {"public", "authenticated"} else "editor"
+            role_value = (row["role_code"] or "").strip().lower()
+            role_by_user_id[row["user_id"]] = "user" if role_value in {"public", "authenticated"} else "editor"
 
         users = {}
         for row in self.fetch_all(
