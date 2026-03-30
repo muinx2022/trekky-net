@@ -184,14 +184,17 @@
 
 .tiptap-editor {
   min-height: 24rem;
+  overflow-x: hidden;
 }
 
 .tiptap-prose {
   min-height: 24rem;
+  max-width: 100%;
   padding: 1rem 1.1rem;
   outline: none;
   color: #0f172a;
   line-height: 1.75;
+  overflow-x: hidden;
 }
 
 .tiptap-prose p.is-editor-empty:first-child::before {
@@ -238,9 +241,15 @@
 .tiptap-prose video,
 .tiptap-prose iframe {
   display: block;
-  max-width: 100%;
+  max-width: 100% !important;
   margin: 1rem auto;
   border-radius: 0.85rem;
+  box-sizing: border-box;
+}
+
+.tiptap-prose img {
+  width: auto;
+  height: auto;
 }
 
 .tiptap-prose video,
