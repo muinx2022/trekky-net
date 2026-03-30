@@ -1,0 +1,236 @@
+{% extends "admin_app/base.html" %}
+
+{% block title %}{{ page_title }} | Trekky Admin{% endblock %}
+{% block page_title %}{{ page_title }}{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js"></script>
+<script>
+  function getCookie(name) {
+    const value = `; ${document.cookie}`;
+    const parts = value.split(`; ${name}=`);
+    if (parts.length === 2) return parts.pop().split(";").shift();
+    return "";
+  }
+
+  function serializeTree(listElement) {
+    return Array.from(listElement.children)
+      .filter((item) => item.matches(".category-tree-item"))
+      .map((item) => ({
+        document_id: item.dataset.documentId,
+        children: serializeTree(item.querySelector(":scope > .category-tree-list")),
+      }));
+  }
+
+  function refreshSortBadges(listElement) {
+    if (!listElement) return;
+    Array.from(listElement.children)
+      .filter((item) => item.matches(".category-tree-item"))
+      .forEach((item, index) => {
+        const badge = item.querySelector(":scope > .category-tree-row [data-sort-badge]");
+        if (badge) {
+          badge.textContent = `Sort ${index}`;
+        }
+        refreshSortBadges(item.querySelector(":scope > .category-tree-list"));
+      });
+  }
+
+  function initNestedSortable(listElement) {
+    if (!listElement) return;
+    Sortable.create(listElement, {
+      group: "categories-tree",
+      animation: 180,
+      fallbackOnBody: true,
+      swapThreshold: 0.65,
+      handle: ".category-drag-handle",
+      draggable: ".category-tree-item",
+      ghostClass: "category-drag-ghost",
+      chosenClass: "category-drag-chosen",
+      dragClass: "category-dragging",
+      onEnd: async () => {
+        const root = document.getElementById("categoryTreeRoot");
+        const status = document.getElementById("categoryTreeStatus");
+        if (!root) return;
+        const tree = serializeTree(root);
+        status.textContent = "Saving order...";
+        try {
+          const response = await fetch("{% url 'admin_app:category-reorder' %}", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "X-CSRFToken": getCookie("csrftoken"),
+            },
+            body: JSON.stringify({ tree }),
+          });
+          if (!response.ok) {
+            throw new Error("Failed to reorder categories");
+          }
+          refreshSortBadges(root);
+          status.textContent = "Order saved";
+          setTimeout(() => {
+            status.textContent = "Drag categories to reorder or nest";
+          }, 1200);
+        } catch (error) {
+          status.textContent = "Reorder failed. Refresh and try again.";
+        }
+      },
+    });
+
+    listElement.querySelectorAll(":scope > .category-tree-item > .category-tree-list").forEach((childList) => {
+      initNestedSortable(childList);
+    });
+  }
+
+  document.addEventListener("DOMContentLoaded", () => {
+    const root = document.getElementById("categoryTreeRoot");
+    refreshSortBadges(root);
+    initNestedSortable(root);
+
+    const modal = document.getElementById("assignModeratorModal");
+    if (!modal) return;
+    const categoryLabel = modal.querySelector("[data-category-label]");
+    const form = modal.querySelector("form");
+    const currentModerators = modal.querySelector("[data-current-moderators]");
+
+    const csrfToken = getCookie("csrftoken");
+    let activeAssignButton = null;
+
+    document.querySelectorAll("[data-assign-moderator]").forEach((button) => {
+      button.addEventListener("click", () => {
+        activeAssignButton = button;
+        const categoryName = button.getAttribute("data-category-name") || "this category";
+        const actionUrl = button.getAttribute("data-action-url") || "";
+        const raw = (button.getAttribute("data-current-moderators") || "").trim();
+        const assignments = raw
+          ? raw.split("||").map((entry) => {
+              const [id, ...rest] = entry.split("|");
+              return { id, email: rest.join("|") };
+            })
+          : [];
+        if (categoryLabel) categoryLabel.textContent = categoryName;
+        if (form) form.setAttribute("action", actionUrl);
+        if (currentModerators) {
+          if (assignments.length) {
+            currentModerators.innerHTML = assignments
+              .map(
+                ({ id, email }) =>
+                  `<div class="d-inline-flex align-items-center gap-1 badge text-bg-light border fw-normal fs-6 px-2 py-1" data-assignment-badge="${id}">
+                    <span class="small">${email}</span>
+                    <button type="button" data-unassign="${id}" style="background:none;border:none;padding:0;line-height:1;cursor:pointer;color:inherit;font-size:1rem" title="Remove">&times;</button>
+                  </div>`
+              )
+              .join("");
+          } else {
+            currentModerators.innerHTML = '<span class="text-secondary small">No moderator assigned yet.</span>';
+          }
+        }
+      });
+    });
+
+    if (currentModerators) {
+      currentModerators.addEventListener("click", async (e) => {
+        const btn = e.target.closest("[data-unassign]");
+        if (!btn) return;
+        const id = btn.getAttribute("data-unassign");
+        btn.disabled = true;
+        try {
+          const res = await fetch(`/admin-app/categories/unassign-moderator/${id}/`, {
+            method: "POST",
+            headers: { "X-CSRFToken": csrfToken },
+          });
+          if (res.ok) {
+            const badge = currentModerators.querySelector(`[data-assignment-badge="${id}"]`);
+            if (badge) badge.remove();
+            if (!currentModerators.querySelector("[data-assignment-badge]")) {
+              currentModerators.innerHTML = '<span class="text-secondary small">No moderator assigned yet.</span>';
+            }
+            // Cập nhật lại data attribute trên button để lần mở sau đúng
+            if (activeAssignButton) {
+              const current = activeAssignButton.getAttribute("data-current-moderators") || "";
+              const updated = current.split("||").filter((e) => e && !e.startsWith(`${id}|`)).join("||");
+              activeAssignButton.setAttribute("data-current-moderators", updated);
+
+              // Cập nhật badge "X mod" trên category tree
+              const meta = activeAssignButton.closest(".category-tree-meta");
+              if (meta) {
+                const countBadge = meta.querySelector(".badge.text-bg-info, .badge.text-bg-secondary");
+                const remaining = updated.split("||").filter(Boolean).length;
+                if (countBadge) {
+                  if (remaining === 0) {
+                    countBadge.className = "badge text-bg-secondary";
+                    countBadge.textContent = "No mod";
+                    countBadge.removeAttribute("title");
+                  } else {
+                    countBadge.className = "badge text-bg-info";
+                    countBadge.textContent = `${remaining} mod`;
+                  }
+                }
+              }
+            }
+          }
+        } catch {
+          btn.disabled = false;
+        }
+      });
+    }
+  });
+</script>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+  <div>
+    <p class="text-secondary mb-1">{{ page_subtitle }}</p>
+    <div id="categoryTreeStatus" class="small text-secondary">Drag categories to reorder or nest</div>
+  </div>
+  <a href="{{ create_url }}" class="btn btn-primary">{{ create_label }}</a>
+</div>
+
+<div class="card shadow-sm border-0">
+  <div class="card-body p-4">
+    <ul id="categoryTreeRoot" class="category-tree-list category-tree-root">
+      {% for node in category_tree %}
+        {% include "admin_app/category_tree_node.html" with node=node %}
+      {% endfor %}
+    </ul>
+  </div>
+</div>
+
+<div class="modal fade" id="assignModeratorModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header">
+        <div>
+          <h5 class="modal-title mb-1">Assign Moderator</h5>
+          <div class="small text-secondary">Assign a moderator to <span class="fw-semibold" data-category-label>this category</span>.</div>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body pb-0">
+        <div class="mb-3">
+          <div class="form-label fw-semibold mb-2">Currently assigned</div>
+          <div class="d-flex flex-wrap gap-2" data-current-moderators>
+            <span class="text-secondary small">No moderator assigned yet.</span>
+          </div>
+        </div>
+      </div>
+      <form method="post">
+        <div class="modal-body pt-2">
+          {% csrf_token %}
+          <label for="assign-moderator-select" class="form-label fw-semibold">Add moderator</label>
+          <select id="assign-moderator-select" name="moderator_id" class="form-select" required>
+            <option value="">Select moderator</option>
+            {% for moderator in moderator_options %}
+              <option value="{{ moderator.id }}">{{ moderator.email }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary btn-sm">Assign</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

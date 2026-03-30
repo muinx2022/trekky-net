@@ -1,0 +1,445 @@
+{% extends "admin_app/base.html" %}
+
+{% block title %}{{ page_title }} | Trekky Admin{% endblock %}
+{% block page_title %}{{ page_title }}{% endblock %}
+
+{% block extra_js %}
+<script>
+  function getCookie(name) {
+    const value = `; ${document.cookie}`;
+    const parts = value.split(`; ${name}=`);
+    if (parts.length === 2) return parts.pop().split(";").shift();
+    return "";
+  }
+
+  async function fetchMediaJson(url, options = {}) {
+    const headers = new Headers(options.headers || {});
+    if ((options.method || "GET").toUpperCase() !== "GET") {
+      headers.set("X-CSRFToken", getCookie("csrftoken"));
+    }
+    const response = await fetch(url, { ...options, headers });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(payload.error || payload.detail || "Request failed");
+    }
+    return payload;
+  }
+
+  function renderMediaFolderTree(nodes, container, selectedFolder, expandedFolders, onSelect, onToggle) {
+    container.innerHTML = "";
+    const rootButton = document.createElement("button");
+    rootButton.type = "button";
+    rootButton.className = `media-folder-link media-folder-root${!selectedFolder ? " active" : ""}`;
+    rootButton.textContent = "All folders";
+    rootButton.addEventListener("click", () => onSelect(""));
+    container.appendChild(rootButton);
+
+    const makeList = (items) => {
+      const list = document.createElement("ul");
+      list.className = "media-folder-list";
+      items.forEach((item) => {
+        const row = document.createElement("li");
+        row.className = "media-folder-item";
+        const rowShell = document.createElement("div");
+        rowShell.className = "media-folder-row";
+        const hasChildren = (item.children || []).length > 0;
+        const isExpanded = expandedFolders.has(item.path || "");
+
+        if (hasChildren) {
+          const toggle = document.createElement("button");
+          toggle.type = "button";
+          toggle.className = `media-folder-toggle${isExpanded ? " is-expanded" : ""}`;
+          toggle.setAttribute("aria-label", isExpanded ? "Collapse folder" : "Expand folder");
+          toggle.innerHTML = '<i class="bi bi-chevron-right"></i>';
+          toggle.addEventListener("click", (event) => {
+            event.stopPropagation();
+            onToggle(item.path || "");
+          });
+          rowShell.appendChild(toggle);
+        } else {
+          const spacer = document.createElement("span");
+          spacer.className = "media-folder-toggle-spacer";
+          rowShell.appendChild(spacer);
+        }
+
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = `media-folder-link${item.path === selectedFolder ? " active" : ""}`;
+        button.textContent = item.name;
+        button.addEventListener("click", () => onSelect(item.path || ""));
+        rowShell.appendChild(button);
+        row.appendChild(rowShell);
+        if (hasChildren && isExpanded) {
+          row.appendChild(makeList(item.children));
+        }
+        list.appendChild(row);
+      });
+      return list;
+    };
+
+    container.appendChild(makeList(nodes || []));
+  }
+
+  document.addEventListener("DOMContentLoaded", () => {
+    const state = {
+      folder: "",
+      expandedFolders: new Set(),
+      query: "",
+      resourceType: "image",
+      sort: "created_at:desc",
+      view: "grid",
+      nextCursor: "",
+      detailItem: null,
+    };
+
+    const folderContainer = document.querySelector("[data-media-browser-folders]");
+    const grid = document.querySelector("[data-media-browser-grid]");
+    const list = document.querySelector("[data-media-browser-list]");
+    const empty = document.querySelector("[data-media-browser-empty]");
+    const status = document.querySelector("[data-media-browser-status]");
+    const folderBadge = document.querySelector("[data-media-browser-folder]");
+    const nextButton = document.querySelector("[data-media-browser-next]");
+    const searchInput = document.querySelector("[data-media-browser-search]");
+    const typeInput = document.querySelector("[data-media-browser-type]");
+    const sortInput = document.querySelector("[data-media-browser-sort]");
+    const uploadInput = document.querySelector("[data-media-browser-upload]");
+    const viewButtons = document.querySelectorAll("[data-media-view]");
+
+    const detailModal = document.getElementById("mediaDetailModal");
+    const detailBootstrap = detailModal && window.bootstrap ? new window.bootstrap.Modal(detailModal) : null;
+
+    function setStatus(text) {
+      if (status) status.textContent = text;
+    }
+
+    function setView(mode) {
+      state.view = mode;
+      grid.classList.toggle("d-none", mode !== "grid");
+      list.classList.toggle("d-none", mode !== "list");
+      viewButtons.forEach((button) => button.classList.toggle("active", button.dataset.mediaView === mode));
+    }
+
+    function openDetail(item) {
+      state.detailItem = item;
+      detailModal.querySelector("[data-media-detail-title]").textContent = item.original_filename || item.public_id || "Asset";
+      detailModal.querySelector("[data-media-detail-image]").src = item.url;
+      detailModal.querySelector("[data-media-detail-image]").alt = item.original_filename || item.public_id || "Asset";
+      detailModal.querySelector("[data-media-detail-public-id]").textContent = item.public_id || "";
+      detailModal.querySelector("[data-media-detail-folder]").textContent = item.folder || "root";
+      detailModal.querySelector("[data-media-detail-size]").textContent = item.size_bytes || 0;
+      detailModal.querySelector("[data-media-detail-dimensions]").textContent = item.width && item.height ? `${item.width} x ${item.height}` : "N/A";
+      detailModal.querySelector("[data-media-detail-link]").href = item.url;
+      detailBootstrap?.show();
+    }
+
+    function expandSelectedBranch(nodes, targetPath, ancestors = []) {
+      if (!targetPath) return false;
+      for (const item of nodes || []) {
+        const nextAncestors = ancestors.concat(item.path || "");
+        if (item.path === targetPath) {
+          nextAncestors.forEach((path) => path && state.expandedFolders.add(path));
+          return true;
+        }
+        if (expandSelectedBranch(item.children || [], targetPath, nextAncestors)) {
+          return true;
+        }
+      }
+      return false;
+    }
+
+    async function loadFolders() {
+      try {
+        const payload = await fetchMediaJson("/api/v1/admin/media/folders/");
+        expandSelectedBranch(payload.items || [], state.folder);
+        renderMediaFolderTree(
+          payload.items || [],
+          folderContainer,
+          state.folder,
+          state.expandedFolders,
+          (folder) => {
+            state.folder = folder;
+            if (folder) {
+              state.expandedFolders.add(folder);
+            }
+            folderBadge.textContent = folder || "All folders";
+            state.nextCursor = "";
+            loadAssets();
+            loadFolders();
+          },
+          (folder) => {
+            if (state.expandedFolders.has(folder)) {
+              state.expandedFolders.delete(folder);
+            } else {
+              state.expandedFolders.add(folder);
+            }
+            loadFolders();
+          }
+        );
+      } catch (error) {
+        folderContainer.innerHTML = `<div class="text-danger small">${error.message}</div>`;
+      }
+    }
+
+    function buildAssetCard(item) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "media-picker-card";
+      button.innerHTML = `
+        <img src="${item.thumbnail_url || item.url}" alt="${item.original_filename || "Asset"}" class="media-picker-card-thumb">
+        <div class="media-picker-card-body">
+          <div class="fw-semibold text-truncate">${item.original_filename || item.public_id || "Asset"}</div>
+          <div class="small text-secondary text-truncate">${item.folder || "root"}</div>
+        </div>
+      `;
+      button.addEventListener("click", () => openDetail(item));
+      return button;
+    }
+
+    function buildAssetRow(item) {
+      const row = document.createElement("button");
+      row.type = "button";
+      row.className = "media-list-row";
+      row.innerHTML = `
+        <img src="${item.thumbnail_url || item.url}" alt="${item.original_filename || "Asset"}" class="media-list-thumb">
+        <div class="min-w-0">
+          <div class="fw-semibold text-truncate">${item.original_filename || item.public_id || "Asset"}</div>
+          <div class="small text-secondary text-truncate">${item.public_id || ""}</div>
+        </div>
+        <div class="small text-secondary text-truncate">${item.folder || "root"}</div>
+        <div class="small text-secondary">${item.width && item.height ? `${item.width} x ${item.height}` : "N/A"}</div>
+        <div class="small text-secondary">${item.size_bytes || 0}</div>
+      `;
+      row.addEventListener("click", () => openDetail(item));
+      return row;
+    }
+
+    async function loadAssets(nextCursor = "") {
+      const params = new URLSearchParams();
+      if (state.folder) params.set("folder", state.folder);
+      if (state.query) params.set("q", state.query);
+      if (state.resourceType) params.set("resource_type", state.resourceType);
+      const [sortBy, sortDir] = state.sort.split(":");
+      params.set("sort_by", sortBy || "created_at");
+      params.set("sort_dir", sortDir || "desc");
+      params.set("max_results", "30");
+      if (nextCursor) params.set("next_cursor", nextCursor);
+
+      setStatus("Loading assets...");
+      try {
+        const payload = await fetchMediaJson(`/api/v1/admin/media/assets/?${params.toString()}`);
+        const items = payload.items || [];
+        if (!nextCursor) {
+          grid.innerHTML = "";
+          list.innerHTML = "";
+        }
+        items.forEach((item) => {
+          grid.appendChild(buildAssetCard(item));
+          list.appendChild(buildAssetRow(item));
+        });
+        empty.classList.toggle("d-none", (grid.childElementCount + list.childElementCount) > 0);
+        state.nextCursor = payload.next_cursor || "";
+        nextButton.classList.toggle("d-none", !state.nextCursor);
+        nextButton.dataset.nextCursor = state.nextCursor;
+        setStatus(`${items.length} asset(s) loaded`);
+      } catch (error) {
+        grid.innerHTML = `<div class="text-danger small">${error.message}</div>`;
+        list.innerHTML = "";
+        empty.classList.add("d-none");
+        nextButton.classList.add("d-none");
+        setStatus("Failed to load assets");
+      }
+    }
+
+    async function uploadFiles(files) {
+      if (!files.length) return;
+      const formData = new FormData();
+      Array.from(files).forEach((file) => formData.append("files", file));
+      if (state.folder) formData.append("folder", state.folder);
+      setStatus("Uploading...");
+      try {
+        const payload = await fetchMediaJson("/api/v1/admin/media/upload/", {
+          method: "POST",
+          body: formData,
+        });
+        setStatus(`${(payload.items || []).length} asset(s) uploaded`);
+        state.nextCursor = "";
+        await loadAssets();
+        await loadFolders();
+      } catch (error) {
+        setStatus(error.message);
+      }
+    }
+
+    document.querySelector("[data-media-browser-refresh]")?.addEventListener("click", () => loadAssets());
+    searchInput?.addEventListener("input", () => {
+      state.query = searchInput.value.trim();
+      state.nextCursor = "";
+      loadAssets();
+    });
+    typeInput?.addEventListener("change", () => {
+      state.resourceType = typeInput.value;
+      state.nextCursor = "";
+      loadAssets();
+    });
+    sortInput?.addEventListener("change", () => {
+      state.sort = sortInput.value;
+      state.nextCursor = "";
+      loadAssets();
+    });
+    uploadInput?.addEventListener("change", (event) => {
+      uploadFiles(event.target.files || []);
+      event.target.value = "";
+    });
+    viewButtons.forEach((button) => {
+      button.addEventListener("click", () => setView(button.dataset.mediaView));
+    });
+    nextButton?.addEventListener("click", () => {
+      if (state.nextCursor) loadAssets(state.nextCursor);
+    });
+
+    detailModal?.querySelector("[data-media-copy-url]")?.addEventListener("click", async () => {
+      if (!state.detailItem?.url) return;
+      await navigator.clipboard.writeText(state.detailItem.url);
+    });
+    detailModal?.querySelector("[data-media-copy-public-id]")?.addEventListener("click", async () => {
+      if (!state.detailItem?.public_id) return;
+      await navigator.clipboard.writeText(state.detailItem.public_id);
+    });
+    detailModal?.querySelector("[data-media-delete]")?.addEventListener("click", async () => {
+      if (!state.detailItem?.public_id) return;
+      try {
+        await fetchMediaJson("/api/v1/admin/media/delete/", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            public_id: state.detailItem.public_id,
+            resource_type: state.detailItem.resource_type || "image",
+          }),
+        });
+        detailBootstrap?.hide();
+        state.nextCursor = "";
+        await loadAssets();
+        setStatus("Asset deleted");
+      } catch (error) {
+        setStatus(error.message);
+      }
+    });
+
+    setView("grid");
+    loadFolders();
+    loadAssets();
+  });
+</script>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+  <div>
+    <p class="text-secondary mb-1">{{ page_subtitle }}</p>
+    <div class="small text-secondary">
+      Current folder:
+      <span class="fw-semibold" data-media-browser-folder>All folders</span>
+      <span class="ms-2" data-media-browser-status>Loading assets...</span>
+    </div>
+  </div>
+  <div class="d-flex flex-wrap gap-2">
+    <label class="btn btn-primary btn-sm mb-0">
+      Upload
+      <input type="file" class="d-none" data-media-browser-upload multiple>
+    </label>
+    <button type="button" class="btn btn-outline-secondary btn-sm" data-media-browser-refresh>Refresh</button>
+  </div>
+</div>
+
+<div class="card border-0 shadow-sm overflow-hidden">
+  <div class="media-picker-layout">
+    <aside class="media-picker-sidebar">
+      <div class="media-picker-sidebar-head">Folders</div>
+      <div data-media-browser-folders></div>
+    </aside>
+    <section class="media-picker-main">
+      <div class="media-picker-toolbar">
+        <div class="row g-2 align-items-center">
+          <div class="col-12 col-xl-4">
+            <input type="text" class="form-control" placeholder="Search by filename or public id" data-media-browser-search>
+          </div>
+          <div class="col-6 col-xl-2">
+            <select class="form-select" data-media-browser-type>
+              <option value="image">Images</option>
+              <option value="video">Videos</option>
+              <option value="raw">Raw</option>
+              <option value="all">All</option>
+            </select>
+          </div>
+          <div class="col-6 col-xl-3">
+            <select class="form-select" data-media-browser-sort>
+              <option value="created_at:desc">Newest first</option>
+              <option value="created_at:asc">Oldest first</option>
+              <option value="public_id:asc">Name A-Z</option>
+              <option value="public_id:desc">Name Z-A</option>
+            </select>
+          </div>
+          <div class="col-12 col-xl-3">
+            <div class="btn-group w-100" role="group">
+              <button type="button" class="btn btn-outline-secondary active" data-media-view="grid"><i class="bi bi-grid"></i> Grid</button>
+              <button type="button" class="btn btn-outline-secondary" data-media-view="list"><i class="bi bi-list-ul"></i> List</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="media-picker-grid" data-media-browser-grid></div>
+      <div class="media-browser-list d-none" data-media-browser-list></div>
+      <div class="media-picker-empty text-secondary small d-none" data-media-browser-empty>No assets found.</div>
+      <div class="p-3 text-center">
+        <button type="button" class="btn btn-outline-secondary btn-sm d-none" data-media-browser-next>Load more</button>
+      </div>
+    </section>
+  </div>
+</div>
+
+<div class="modal fade" id="mediaDetailModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header">
+        <div>
+          <h5 class="modal-title mb-1" data-media-detail-title>Asset detail</h5>
+          <div class="small text-secondary">Preview and manage this Cloudinary asset.</div>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="row g-4">
+          <div class="col-12 col-lg-7">
+            <img src="" alt="" class="w-100 rounded-4 border" data-media-detail-image>
+          </div>
+          <div class="col-12 col-lg-5">
+            <div class="mb-3">
+              <div class="text-secondary small">Public ID</div>
+              <div class="fw-semibold text-break" data-media-detail-public-id></div>
+            </div>
+            <div class="mb-3">
+              <div class="text-secondary small">Folder</div>
+              <div class="fw-semibold text-break" data-media-detail-folder></div>
+            </div>
+            <div class="mb-3">
+              <div class="text-secondary small">Size</div>
+              <div class="fw-semibold" data-media-detail-size></div>
+            </div>
+            <div class="mb-4">
+              <div class="text-secondary small">Dimensions</div>
+              <div class="fw-semibold" data-media-detail-dimensions></div>
+            </div>
+            <div class="d-flex flex-wrap gap-2">
+              <button type="button" class="btn btn-outline-secondary btn-sm" data-media-copy-url>Copy URL</button>
+              <button type="button" class="btn btn-outline-secondary btn-sm" data-media-copy-public-id>Copy Public ID</button>
+              <a href="#" class="btn btn-outline-primary btn-sm" target="_blank" rel="noreferrer" data-media-detail-link>Open Asset</a>
+              <button type="button" class="btn btn-outline-danger btn-sm" data-media-delete>Delete</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

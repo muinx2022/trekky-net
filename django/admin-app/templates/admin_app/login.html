@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Login | Trekky Admin App</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+  <link href="/static/admin_app/admin-app.css" rel="stylesheet">
+</head>
+<body class="admin-app-body admin-login-body">
+  <div class="login-shell container-fluid">
+    <div class="row min-vh-100 align-items-center justify-content-center py-4 py-lg-5">
+      <div class="col-12 col-xl-10">
+        <div class="login-frame shadow-lg">
+          <div class="row g-0">
+            <div class="col-lg-5 d-none d-lg-flex">
+              <section class="login-brand-panel">
+                <div class="login-brand-badge">Trekky CMS</div>
+                <h1 class="login-brand-title">Admin App</h1>
+                <p class="login-brand-copy">
+                  The main editorial workspace for content, reports, moderator assignment, automation settings, and admin operations.
+                </p>
+
+                <div class="login-feature-list">
+                  <div class="login-feature-item">
+                    <i class="bi bi-grid-1x2-fill"></i>
+                    <span>Dashboard, reports, moderators, and content management in one place.</span>
+                  </div>
+                  <div class="login-feature-item">
+                    <i class="bi bi-link-45deg"></i>
+                    <span>Preserved public `document_id` routing for legacy Trekky URLs.</span>
+                  </div>
+                  <div class="login-feature-item">
+                    <i class="bi bi-shield-check"></i>
+                    <span>Separate sign-in from Django admin with role-based access for admin and editor.</span>
+                  </div>
+                </div>
+              </section>
+            </div>
+            <div class="col-12 col-lg-7">
+              <section class="login-form-panel">
+                <div class="mb-4">
+                  <div class="text-uppercase login-overline">Welcome back</div>
+                  <h2 class="login-form-title">Sign in to Admin App</h2>
+                  <p class="login-form-copy">Use your Trekky admin or editor account. Django admin stays separate.</p>
+                </div>
+
+                {% if messages %}
+                  {% for message in messages %}
+                    <div class="alert alert-{{ message.tags|default:'info' }} login-alert" role="alert">
+                      {{ message }}
+                    </div>
+                  {% endfor %}
+                {% endif %}
+
+                <form method="post" novalidate class="login-form">
+                  {% csrf_token %}
+                  <input type="hidden" name="next" value="{{ request.GET.next }}">
+
+                  <div class="mb-3">
+                    <label class="form-label login-label" for="{{ form.username.id_for_label }}">Email</label>
+                    {{ form.username }}
+                    {% if form.username.errors %}
+                      <div class="text-danger small mt-2">{{ form.username.errors|join:", " }}</div>
+                    {% endif %}
+                  </div>
+
+                  <div class="mb-3">
+                    <label class="form-label login-label" for="{{ form.password.id_for_label }}">Password</label>
+                    {{ form.password }}
+                    {% if form.password.errors %}
+                      <div class="text-danger small mt-2">{{ form.password.errors|join:", " }}</div>
+                    {% endif %}
+                  </div>
+
+                  {% if form.non_field_errors %}
+                    <div class="alert alert-danger login-alert">{{ form.non_field_errors|join:", " }}</div>
+                  {% endif %}
+
+                  <button type="submit" class="btn btn-primary btn-lg w-100 login-submit">Sign In</button>
+                </form>
+
+                <div class="login-footer d-flex flex-column flex-md-row justify-content-between gap-3">
+                  <div class="small text-secondary">
+                    Django admin:
+                    <a href="/admin/" class="link-secondary fw-semibold">/admin/</a>
+                  </div>
+                  <div class="small text-secondary">
+                    Demo admin:
+                    <span class="fw-semibold">admin@trekky.local</span>
+                  </div>
+                </div>
+              </section>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

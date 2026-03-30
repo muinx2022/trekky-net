@@ -1,0 +1,33 @@
+<ul class="post-comment-tree">
+  {% for node in nodes %}
+    {% with comment=node.comment %}
+      <li class="post-comment-node">
+        <div class="post-comment-card">
+          <div class="d-flex justify-content-between align-items-start gap-3">
+            <div class="min-w-0">
+              <div class="fw-semibold">{{ comment.author_name }}</div>
+              <div class="small text-secondary">
+                {{ comment.author_email|default:"-" }} - {{ comment.created_at|date:"Y-m-d H:i" }}
+              </div>
+            </div>
+            <div class="d-flex align-items-center gap-2 flex-shrink-0">
+              <span class="badge {% if comment.status == 'published' %}text-bg-success{% elif comment.status == 'pending' %}text-bg-warning{% else %}text-bg-secondary{% endif %}">
+                {{ comment.status }}
+              </span>
+              <form method="post" action="{% url 'admin_app:post-comment-delete-branch' post.document_id comment.document_id %}" onsubmit="return confirm('Delete this comment and all replies in this branch?');">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-outline-danger btn-sm icon-action-btn" title="Delete branch">
+                  <i class="bi bi-trash"></i>
+                </button>
+              </form>
+            </div>
+          </div>
+          <div class="mt-2 small">{{ comment.content|linebreaksbr }}</div>
+        </div>
+        {% if node.children %}
+          {% include "admin_app/post_detail_comment_nodes.html" with nodes=node.children post=post %}
+        {% endif %}
+      </li>
+    {% endwith %}
+  {% endfor %}
+</ul>

@@ -1,0 +1,105 @@
+{% extends "admin_app/base.html" %}
+
+{% block title %}{{ post.title }} | Trekky Admin{% endblock %}
+{% block page_title %}Post View{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+  <p class="text-secondary mb-0">{{ page_subtitle }}</p>
+  <div class="d-flex gap-2">
+    <a href="{% url 'admin_app:post-update' post.document_id %}" class="btn btn-primary btn-sm">Edit Post</a>
+    <a href="{% url 'admin_app:post-list' %}" class="btn btn-outline-secondary btn-sm">Back to Posts</a>
+  </div>
+</div>
+
+<div class="row g-4">
+  <div class="col-12 col-xl-4">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body">
+        <div class="post-detail-label">Post Info</div>
+        <h2 class="h4 mb-2">{{ post.title }}</h2>
+        <p class="text-secondary mb-4">{{ post.excerpt|default:"No excerpt yet." }}</p>
+
+        <div class="post-detail-meta-list">
+          <div class="post-detail-meta-item">
+            <span class="post-detail-meta-key">Document ID</span>
+            <code>{{ post.document_id }}</code>
+          </div>
+          <div class="post-detail-meta-item">
+            <span class="post-detail-meta-key">Slug</span>
+            <span>{{ post.slug }}</span>
+          </div>
+          <div class="post-detail-meta-item">
+            <span class="post-detail-meta-key">Author</span>
+            <span>{{ post.author|default:"-" }}</span>
+          </div>
+          <div class="post-detail-meta-item">
+            <span class="post-detail-meta-key">Status</span>
+            <span class="badge {% if post.is_published %}text-bg-success{% else %}text-bg-secondary{% endif %}">
+              {% if post.is_published %}Published{% else %}Draft{% endif %}
+            </span>
+          </div>
+          <div class="post-detail-meta-item">
+            <span class="post-detail-meta-key">Permalink</span>
+            <a href="{{ post.permalink }}" target="_blank" rel="noreferrer">{{ post.permalink }}</a>
+          </div>
+          <div class="post-detail-meta-item">
+            <span class="post-detail-meta-key">Comments</span>
+            <span>{{ comment_count }}</span>
+          </div>
+          <div class="post-detail-meta-item">
+            <span class="post-detail-meta-key">Updated</span>
+            <span>{{ post.updated_at|date:"Y-m-d H:i" }}</span>
+          </div>
+        </div>
+
+        {% if post.categories.exists %}
+          <div class="mt-4">
+            <div class="post-detail-meta-key mb-2">Categories</div>
+            <div class="d-flex flex-wrap gap-2">
+              {% for category in post.categories.all %}
+                <span class="badge rounded-pill text-bg-light">{{ category.name }}</span>
+              {% endfor %}
+            </div>
+          </div>
+        {% endif %}
+
+        {% if post.tags.exists %}
+          <div class="mt-4">
+            <div class="post-detail-meta-key mb-2">Tags</div>
+            <div class="d-flex flex-wrap gap-2">
+              {% for tag in post.tags.all %}
+                <span class="badge rounded-pill text-bg-warning-subtle text-warning-emphasis">{{ tag.name }}</span>
+              {% endfor %}
+            </div>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12 col-xl-8">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center gap-3 mb-3">
+          <div>
+            <div class="post-detail-label">Comment Tree</div>
+            <h2 class="h4 mb-0">All Comments</h2>
+          </div>
+          <span class="badge text-bg-light">{{ comment_count }} total</span>
+        </div>
+
+        {% if comment_tree %}
+          <div class="comment-tree-root">
+            <div class="comment-tree-scroll{% if comment_count > 8 %} is-capped{% endif %}">
+              {% include "admin_app/post_detail_comment_nodes.html" with nodes=comment_tree post=post %}
+            </div>
+          </div>
+        {% else %}
+          <div class="text-secondary">No comments found for this post.</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

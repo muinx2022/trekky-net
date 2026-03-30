@@ -1,0 +1,851 @@
+{% extends "admin_app/base.html" %}
+
+{% block title %}{{ page_title }} | Trekky Admin{% endblock %}
+{% block page_title %}{{ page_title }}{% endblock %}
+{% block extra_js %}
+<script type="module">
+  import { Editor } from "https://esm.sh/@tiptap/core@2.26.1";
+  import StarterKit from "https://esm.sh/@tiptap/starter-kit@2.26.1";
+  import Link from "https://esm.sh/@tiptap/extension-link@2.26.1";
+  import Placeholder from "https://esm.sh/@tiptap/extension-placeholder@2.26.1";
+
+  function trekkySlugify(value) {
+    return String(value || "")
+      .trim()
+      .replace(/đ/g, "d")
+      .replace(/Đ/g, "D")
+      .normalize("NFKD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 255);
+  }
+
+  function getCookie(name) {
+    const value = `; ${document.cookie}`;
+    const parts = value.split(`; ${name}=`);
+    if (parts.length === 2) return parts.pop().split(";").shift();
+    return "";
+  }
+
+  const slugSource = document.querySelector("[data-autoslug-source='true']");
+  const slugTarget = document.querySelector("[data-autoslug-target='true']");
+
+  if (slugSource && slugTarget) {
+    const syncSlug = () => {
+      slugTarget.value = trekkySlugify(slugSource.value);
+    };
+
+    syncSlug();
+    slugSource.addEventListener("input", syncSlug);
+    slugSource.addEventListener("change", syncSlug);
+  }
+
+  const mediaPickerState = {
+    selectedItems: [],
+    activeInput: null,
+    activePreview: null,
+    activeCount: null,
+    activeEmpty: null,
+    targetMode: "multiple",
+  };
+
+  function syncMediaInput() {
+    if (!mediaPickerState.activeInput) return;
+    mediaPickerState.activeInput.value = mediaPickerState.selectedItems.map((item) => item.id).join(",");
+  }
+
+  function renderMediaPreview() {
+    if (!mediaPickerState.activePreview) return;
+    mediaPickerState.activePreview.innerHTML = "";
+    if (!mediaPickerState.selectedItems.length) {
+      mediaPickerState.activeEmpty?.classList.remove("d-none");
+      if (mediaPickerState.activeCount) mediaPickerState.activeCount.textContent = "No media selected";
+      syncMediaInput();
+      return;
+    }
+
+    mediaPickerState.activeEmpty?.classList.add("d-none");
+    if (mediaPickerState.activeCount) {
+      mediaPickerState.activeCount.textContent = `${mediaPickerState.selectedItems.length} asset${mediaPickerState.selectedItems.length > 1 ? "s" : ""} selected`;
+    }
+    mediaPickerState.selectedItems.forEach((item) => {
+      const card = document.createElement("div");
+      card.className = "media-selection-card";
+      card.innerHTML = `
+        <img src="${item.thumbnail_url || item.url}" alt="${item.original_filename || "Media"}" class="media-selection-thumb">
+        <div class="media-selection-meta">
+          <div class="fw-semibold text-truncate">${item.original_filename || item.public_id || "Asset"}</div>
+          <div class="small text-secondary text-truncate">${item.public_id || ""}</div>
+        </div>
+        <button type="button" class="btn btn-sm btn-outline-danger media-selection-remove" title="Remove asset">
+          <i class="bi bi-x-lg"></i>
+        </button>
+      `;
+      card.querySelector(".media-selection-remove").addEventListener("click", () => {
+        mediaPickerState.selectedItems = mediaPickerState.selectedItems.filter((entry) => entry.id !== item.id);
+        renderMediaPreview();
+      });
+      mediaPickerState.activePreview.appendChild(card);
+    });
+    syncMediaInput();
+  }
+
+  function mergeMediaSelection(item) {
+    const exists = mediaPickerState.selectedItems.some((entry) => entry.id === item.id);
+    if (mediaPickerState.targetMode === "single") {
+      mediaPickerState.selectedItems = [item];
+    } else if (!exists) {
+      mediaPickerState.selectedItems = [...mediaPickerState.selectedItems, item];
+    }
+    renderMediaPreview();
+  }
+
+  async function fetchJson(url, options = {}) {
+    const headers = new Headers(options.headers || {});
+    if ((options.method || "GET").toUpperCase() !== "GET") {
+      headers.set("X-CSRFToken", getCookie("csrftoken"));
+    }
+    const response = await fetch(url, { ...options, headers });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(payload.error || payload.detail || "Request failed");
+    }
+    return payload;
+  }
+
+  function renderMediaPickerAssets(payload) {
+    const grid = document.querySelector("[data-media-picker-grid]");
+    const empty = document.querySelector("[data-media-picker-empty]");
+    const nextButton = document.querySelector("[data-media-picker-next]");
+    if (!grid || !empty) return;
+    const items = payload.items || [];
+    grid.innerHTML = "";
+    empty.classList.toggle("d-none", items.length > 0);
+    items.forEach((item) => {
+      const selected = mediaPickerState.selectedItems.some((entry) => entry.id === item.id);
+      const card = document.createElement("button");
+      card.type = "button";
+      card.className = `media-picker-card${selected ? " active" : ""}`;
+      card.innerHTML = `
+        <img src="${item.thumbnail_url || item.url}" alt="${item.original_filename || "Media"}" class="media-picker-card-thumb">
+        <div class="media-picker-card-body">
+          <div class="fw-semibold text-truncate">${item.original_filename || item.public_id || "Asset"}</div>
+          <div class="small text-secondary text-truncate">${item.folder || "root"}</div>
+        </div>
+      `;
+      card.addEventListener("click", () => {
+        mergeMediaSelection(item);
+        card.classList.add("active");
+      });
+      grid.appendChild(card);
+    });
+    if (nextButton) {
+      nextButton.dataset.nextCursor = payload.next_cursor || "";
+      nextButton.classList.toggle("d-none", !payload.next_cursor);
+    }
+  }
+
+  function renderMediaFolders(nodes, container, selectedFolder) {
+    container.innerHTML = "";
+    const makeList = (items) => {
+      const list = document.createElement("ul");
+      list.className = "media-folder-list";
+      items.forEach((item) => {
+        const row = document.createElement("li");
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = `media-folder-link${item.path === selectedFolder ? " active" : ""}`;
+        button.textContent = item.name;
+        button.dataset.folderPath = item.path || "";
+        button.addEventListener("click", () => {
+          const folderInput = document.querySelector("[data-media-picker-folder]");
+          if (folderInput) folderInput.value = item.path || "";
+          loadMediaPickerAssets();
+          loadMediaPickerFolders(item.path || "");
+        });
+        row.appendChild(button);
+        if ((item.children || []).length) {
+          row.appendChild(makeList(item.children));
+        }
+        list.appendChild(row);
+      });
+      return list;
+    };
+    const rootButton = document.createElement("button");
+    rootButton.type = "button";
+    rootButton.className = `media-folder-link media-folder-root${!selectedFolder ? " active" : ""}`;
+    rootButton.textContent = "All folders";
+    rootButton.addEventListener("click", () => {
+      const folderInput = document.querySelector("[data-media-picker-folder]");
+      if (folderInput) folderInput.value = "";
+      loadMediaPickerAssets();
+      loadMediaPickerFolders("");
+    });
+    container.appendChild(rootButton);
+    container.appendChild(makeList(nodes || []));
+  }
+
+  async function loadMediaPickerFolders(selectedFolder = "") {
+    const container = document.querySelector("[data-media-picker-folders]");
+    if (!container) return;
+    try {
+      const payload = await fetchJson("/api/v1/admin/media/folders/");
+      renderMediaFolders(payload.items || [], container, selectedFolder);
+    } catch (error) {
+      container.innerHTML = `<div class="text-danger small">${error.message}</div>`;
+    }
+  }
+
+  async function loadMediaPickerAssets(nextCursor = "") {
+    const params = new URLSearchParams();
+    const folder = document.querySelector("[data-media-picker-folder]")?.value || "";
+    const query = document.querySelector("[data-media-picker-search]")?.value || "";
+    const resourceType = document.querySelector("[data-media-picker-type]")?.value || "image";
+    const sortBy = document.querySelector("[data-media-picker-sort]")?.value || "created_at:desc";
+    const [sortField, sortDir] = sortBy.split(":");
+    if (folder) params.set("folder", folder);
+    if (query) params.set("q", query);
+    if (resourceType) params.set("resource_type", resourceType);
+    if (sortField) params.set("sort_by", sortField);
+    if (sortDir) params.set("sort_dir", sortDir);
+    if (nextCursor) params.set("next_cursor", nextCursor);
+    params.set("max_results", "24");
+    const status = document.querySelector("[data-media-picker-status]");
+    if (status) status.textContent = "Loading assets...";
+    try {
+      const payload = await fetchJson(`/api/v1/admin/media/assets/?${params.toString()}`);
+      renderMediaPickerAssets(payload);
+      if (status) status.textContent = `${payload.items?.length || 0} asset(s) loaded`;
+    } catch (error) {
+      const grid = document.querySelector("[data-media-picker-grid]");
+      if (grid) grid.innerHTML = `<div class="text-danger small">${error.message}</div>`;
+      if (status) status.textContent = "Failed to load assets";
+    }
+  }
+
+  async function uploadMediaPickerFiles(files) {
+    if (!files.length) return;
+    const formData = new FormData();
+    Array.from(files).forEach((file) => formData.append("files", file));
+    const folder = document.querySelector("[data-media-picker-folder]")?.value || "";
+    if (folder) formData.append("folder", folder);
+    const status = document.querySelector("[data-media-picker-status]");
+    if (status) status.textContent = "Uploading...";
+    try {
+      const payload = await fetchJson("/api/v1/admin/media/upload/", {
+        method: "POST",
+        body: formData,
+      });
+      const uploaded = payload.items || [];
+      uploaded.forEach((item) => mergeMediaSelection(item));
+      await loadMediaPickerAssets();
+      if (status) status.textContent = `${uploaded.length} asset(s) uploaded`;
+    } catch (error) {
+      if (status) status.textContent = error.message;
+    }
+  }
+
+  const categorySelects = document.querySelectorAll("select[data-category-multiselect='true']");
+
+  categorySelects.forEach((select) => {
+    const fieldShell = select.closest(".form-field-shell");
+    select.classList.add("d-none");
+
+    const wrapper = document.createElement("div");
+    wrapper.className = "category-multiselect";
+
+    const control = document.createElement("button");
+    control.type = "button";
+    control.className = "category-multiselect-control";
+    control.innerHTML = `
+      <div class="category-multiselect-values" data-category-values></div>
+      <div class="category-multiselect-placeholder" data-category-placeholder>${select.dataset.placeholder || "Select categories"}</div>
+      <i class="bi bi-chevron-down category-multiselect-chevron"></i>
+    `;
+
+    const dropdown = document.createElement("div");
+    dropdown.className = "category-multiselect-dropdown d-none";
+    dropdown.innerHTML = `
+      <div class="category-multiselect-search-shell">
+        <i class="bi bi-search category-multiselect-search-icon"></i>
+        <input type="text" class="category-multiselect-search" placeholder="Search categories">
+      </div>
+      <div class="category-multiselect-options" data-category-options></div>
+      <div class="category-multiselect-empty d-none" data-category-empty>No category found.</div>
+    `;
+
+    const valueHost = control.querySelector("[data-category-values]");
+    const placeholder = control.querySelector("[data-category-placeholder]");
+    const searchInput = dropdown.querySelector(".category-multiselect-search");
+    const optionsHost = dropdown.querySelector("[data-category-options]");
+    const emptyState = dropdown.querySelector("[data-category-empty]");
+    const options = Array.from(select.options).filter((option) => option.value);
+
+    const syncSelectedState = () => {
+      const selected = options.filter((option) => option.selected);
+      valueHost.innerHTML = "";
+      if (!selected.length) {
+        placeholder.classList.remove("d-none");
+      } else {
+        placeholder.classList.add("d-none");
+        selected.forEach((option) => {
+          const pill = document.createElement("span");
+          pill.className = "category-multiselect-pill";
+          pill.innerHTML = `
+            <span>${option.text.trim()}</span>
+            <span class="category-multiselect-pill-remove" aria-hidden="true">&times;</span>
+          `;
+          pill.addEventListener("click", (event) => {
+            event.stopPropagation();
+            option.selected = false;
+            const optionButton = optionsHost.querySelector(`[data-value="${option.value}"]`);
+            if (optionButton) {
+              optionButton.classList.remove("active");
+            }
+            syncSelectedState();
+          });
+          valueHost.appendChild(pill);
+        });
+      }
+    };
+
+    const renderOptions = (query = "") => {
+      const normalized = query.trim().toLowerCase();
+      let visibleCount = 0;
+      optionsHost.innerHTML = "";
+      options.forEach((option) => {
+        const label = option.text.trim();
+        if (normalized && !label.toLowerCase().includes(normalized)) {
+          return;
+        }
+        visibleCount += 1;
+        const item = document.createElement("button");
+        item.type = "button";
+        item.className = "category-multiselect-option";
+        item.dataset.value = option.value;
+        const depth = (option.text.match(/^— */)?.[0].length || 0) / 2;
+        item.dataset.depth = String(Math.max(0, depth));
+        item.innerHTML = `
+          <span class="category-multiselect-check"><i class="bi bi-check2"></i></span>
+          <span class="category-multiselect-option-label">${label.replace(/^—\s*/g, "")}</span>
+        `;
+        item.classList.toggle("active", option.selected);
+        item.addEventListener("click", () => {
+          option.selected = !option.selected;
+          item.classList.toggle("active", option.selected);
+          syncSelectedState();
+          dropdown.classList.add("d-none");
+          searchInput.value = "";
+          renderOptions("");
+        });
+        optionsHost.appendChild(item);
+      });
+      emptyState.classList.toggle("d-none", visibleCount > 0);
+    };
+
+    control.addEventListener("click", () => {
+      const willOpen = dropdown.classList.contains("d-none");
+      document.querySelectorAll(".category-multiselect-dropdown").forEach((menu) => menu.classList.add("d-none"));
+      if (willOpen) {
+        dropdown.classList.remove("d-none");
+        searchInput.focus();
+      }
+    });
+
+    if (fieldShell && fieldShell.classList.contains("has-error")) {
+      control.classList.add("is-invalid");
+    }
+
+    searchInput.addEventListener("input", () => renderOptions(searchInput.value));
+
+    document.addEventListener("click", (event) => {
+      if (!wrapper.contains(event.target)) {
+        dropdown.classList.add("d-none");
+      }
+    });
+
+    syncSelectedState();
+    renderOptions();
+    wrapper.appendChild(control);
+    wrapper.appendChild(dropdown);
+    select.insertAdjacentElement("afterend", wrapper);
+  });
+
+  const tagInput = document.querySelector("[data-tag-suggest-input='true']");
+  const tagDatalist = document.getElementById("tag-suggestions");
+
+  if (tagInput && tagDatalist) {
+    const suggestions = Array.from(tagDatalist.querySelectorAll("option"))
+      .map((option) => option.value.trim())
+      .filter(Boolean);
+
+    const wrapper = document.createElement("div");
+    wrapper.className = "tag-tokenizer";
+    const fieldShell = tagInput.closest(".form-field-shell");
+    tagInput.parentNode.insertBefore(wrapper, tagInput);
+    tagInput.classList.add("d-none");
+
+    const menu = document.createElement("div");
+    menu.className = "tag-suggest-menu d-none";
+    const control = document.createElement("div");
+    control.className = "tag-tokenizer-control";
+    const tokens = document.createElement("div");
+    tokens.className = "tag-tokenizer-tokens";
+    const input = document.createElement("input");
+    input.type = "text";
+    input.className = "tag-tokenizer-input";
+    input.placeholder = tagInput.getAttribute("placeholder") || "Type tags";
+    control.appendChild(tokens);
+    control.appendChild(input);
+    wrapper.appendChild(control);
+    wrapper.appendChild(tagInput);
+    wrapper.appendChild(menu);
+
+    if (fieldShell && fieldShell.classList.contains("has-error")) {
+      control.classList.add("is-invalid");
+    }
+
+    const getTagValues = () =>
+      tagInput.value
+        .split(",")
+        .map((value) => value.trim())
+        .filter(Boolean);
+
+    const setTagValues = (values) => {
+      tagInput.value = values.join(", ");
+    };
+
+    const closeMenu = () => {
+      menu.classList.add("d-none");
+      menu.innerHTML = "";
+    };
+
+    const renderTokens = () => {
+      const values = getTagValues();
+      tokens.innerHTML = "";
+      values.forEach((value) => {
+        const pill = document.createElement("button");
+        pill.type = "button";
+        pill.className = "tag-token-pill";
+        pill.innerHTML = `
+          <span>${value}</span>
+          <span class="tag-token-pill-remove" aria-hidden="true">&times;</span>
+        `;
+        pill.addEventListener("click", () => {
+          const nextValues = getTagValues().filter((item) => item.toLowerCase() !== value.toLowerCase());
+          setTagValues(nextValues);
+          renderTokens();
+          renderSuggestions();
+          input.focus();
+        });
+        tokens.appendChild(pill);
+      });
+    };
+
+    const commitToken = (rawValue) => {
+      const value = String(rawValue || "").trim();
+      if (!value) return false;
+      const values = getTagValues();
+      if (!values.some((item) => item.toLowerCase() === value.toLowerCase())) {
+        values.push(value);
+        setTagValues(values);
+      }
+      input.value = "";
+      renderTokens();
+      return true;
+    };
+
+    const applySuggestion = (value) => {
+      commitToken(value);
+      closeMenu();
+      input.focus();
+    };
+
+    const renderSuggestions = () => {
+      const currentToken = input.value.trim().toLowerCase();
+      const used = new Set(getTagValues().map((item) => item.toLowerCase()));
+
+      if (!currentToken) {
+        closeMenu();
+        return;
+      }
+
+      const matches = suggestions
+        .filter((value) => value.toLowerCase().includes(currentToken) && !used.has(value.toLowerCase()))
+        .slice(0, 8);
+
+      if (!matches.length) {
+        closeMenu();
+        return;
+      }
+
+      menu.innerHTML = "";
+      matches.forEach((value) => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "tag-suggest-item";
+        button.textContent = value;
+        button.addEventListener("click", () => applySuggestion(value));
+        menu.appendChild(button);
+      });
+      menu.classList.remove("d-none");
+    };
+
+    control.addEventListener("click", () => input.focus());
+    input.addEventListener("input", renderSuggestions);
+    input.addEventListener("focus", renderSuggestions);
+    input.addEventListener("keydown", (event) => {
+      if (event.key === "," || event.key === "Enter") {
+        event.preventDefault();
+        if (commitToken(input.value)) {
+          closeMenu();
+        }
+      }
+      if (event.key === "Backspace" && !input.value) {
+        const values = getTagValues();
+        values.pop();
+        setTagValues(values);
+        renderTokens();
+      }
+    });
+    input.addEventListener("blur", () => {
+      if (input.value.trim()) {
+        commitToken(input.value);
+      }
+    });
+    document.addEventListener("click", (event) => {
+      if (!wrapper.contains(event.target)) {
+        if (input.value.trim()) {
+          commitToken(input.value);
+        }
+        closeMenu();
+      }
+    });
+    renderTokens();
+  }
+
+  const mediaPickerModal = document.getElementById("mediaPickerModal");
+  if (mediaPickerModal) {
+    const bootstrapModal = window.bootstrap ? new window.bootstrap.Modal(mediaPickerModal) : null;
+    document.querySelectorAll("[data-open-media-picker]").forEach((button) => {
+      button.addEventListener("click", () => {
+        const inputId = button.getAttribute("data-input-id");
+        const previewId = button.getAttribute("data-preview-id");
+        const countId = button.getAttribute("data-count-id");
+        const emptyId = button.getAttribute("data-empty-id");
+        const mode = button.getAttribute("data-picker-mode") || "multiple";
+        mediaPickerState.activeInput = document.getElementById(inputId);
+        mediaPickerState.activePreview = document.getElementById(previewId);
+        mediaPickerState.activeCount = document.getElementById(countId);
+        mediaPickerState.activeEmpty = document.getElementById(emptyId);
+        mediaPickerState.targetMode = mode;
+        const existingItems = mediaPickerState.activePreview?.querySelectorAll("[data-media-item-json]") || [];
+        mediaPickerState.selectedItems = Array.from(existingItems).map((node) => JSON.parse(node.getAttribute("data-media-item-json") || "{}"));
+        renderMediaPreview();
+        loadMediaPickerFolders(document.querySelector("[data-media-picker-folder]")?.value || "");
+        loadMediaPickerAssets();
+        bootstrapModal?.show();
+      });
+    });
+
+    document.querySelector("[data-media-picker-search]")?.addEventListener("input", () => loadMediaPickerAssets());
+    document.querySelector("[data-media-picker-type]")?.addEventListener("change", () => loadMediaPickerAssets());
+    document.querySelector("[data-media-picker-sort]")?.addEventListener("change", () => loadMediaPickerAssets());
+    document.querySelector("[data-media-picker-refresh]")?.addEventListener("click", () => loadMediaPickerAssets());
+    document.querySelector("[data-media-picker-upload]")?.addEventListener("change", (event) => {
+      uploadMediaPickerFiles(event.target.files || []);
+      event.target.value = "";
+    });
+    document.querySelector("[data-media-picker-next]")?.addEventListener("click", (event) => {
+      const nextCursor = event.currentTarget.dataset.nextCursor || "";
+      if (nextCursor) loadMediaPickerAssets(nextCursor);
+    });
+    document.querySelector("[data-media-picker-done]")?.addEventListener("click", () => {
+      renderMediaPreview();
+      bootstrapModal?.hide();
+    });
+  }
+
+  const editors = document.querySelectorAll("textarea[data-tiptap='true']");
+
+  function createToolbarButton(icon, label, action) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "btn btn-sm btn-outline-secondary tiptap-toolbar-btn";
+    button.dataset.action = action;
+    button.title = label;
+    button.setAttribute("aria-label", label);
+    button.innerHTML = `<i class="bi ${icon}"></i>`;
+    return button;
+  }
+
+  function setActiveStates(editor, toolbar) {
+    toolbar.querySelectorAll("[data-action]").forEach((button) => {
+      const action = button.dataset.action;
+      let isActive = false;
+      if (action === "bold") isActive = editor.isActive("bold");
+      if (action === "italic") isActive = editor.isActive("italic");
+      if (action === "bulletList") isActive = editor.isActive("bulletList");
+      if (action === "orderedList") isActive = editor.isActive("orderedList");
+      if (action === "blockquote") isActive = editor.isActive("blockquote");
+      if (action === "h2") isActive = editor.isActive("heading", { level: 2 });
+      if (action === "h3") isActive = editor.isActive("heading", { level: 3 });
+      if (action === "link") isActive = editor.isActive("link");
+      button.classList.toggle("active", isActive);
+    });
+  }
+
+  editors.forEach((textarea) => {
+    textarea.classList.add("d-none");
+    const fieldShell = textarea.closest(".form-field-shell");
+
+    const shell = document.createElement("div");
+    shell.className = "tiptap-shell";
+    if (fieldShell && fieldShell.classList.contains("has-error")) {
+      shell.classList.add("is-invalid");
+    }
+
+    const toolbar = document.createElement("div");
+    toolbar.className = "tiptap-toolbar";
+
+    [
+      ["bi-type-bold", "Bold", "bold"],
+      ["bi-type-italic", "Italic", "italic"],
+      ["bi-list-ul", "Bullet list", "bulletList"],
+      ["bi-list-ol", "Ordered list", "orderedList"],
+      ["bi-blockquote-left", "Blockquote", "blockquote"],
+      ["bi-type-h2", "Heading 2", "h2"],
+      ["bi-type-h3", "Heading 3", "h3"],
+      ["bi-link-45deg", "Link", "link"],
+      ["bi-arrow-counterclockwise", "Undo", "undo"],
+      ["bi-arrow-clockwise", "Redo", "redo"],
+    ].forEach(([icon, label, action]) => toolbar.appendChild(createToolbarButton(icon, label, action)));
+
+    const editorNode = document.createElement("div");
+    editorNode.className = "tiptap-editor";
+
+    shell.appendChild(toolbar);
+    shell.appendChild(editorNode);
+    textarea.insertAdjacentElement("afterend", shell);
+
+    const editor = new Editor({
+      element: editorNode,
+      extensions: [
+        StarterKit,
+        Link.configure({ openOnClick: false }),
+        Placeholder.configure({
+          placeholder: textarea.dataset.tiptapPlaceholder || "Start writing...",
+        }),
+      ],
+      content: textarea.value,
+      onUpdate: ({ editor }) => {
+        textarea.value = editor.getHTML();
+        setActiveStates(editor, toolbar);
+      },
+      onSelectionUpdate: ({ editor }) => {
+        setActiveStates(editor, toolbar);
+      },
+      editorProps: {
+        attributes: {
+          class: "tiptap-prose",
+        },
+      },
+    });
+
+    setActiveStates(editor, toolbar);
+
+    toolbar.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-action]");
+      if (!button) return;
+      const action = button.dataset.action;
+      const chain = editor.chain().focus();
+
+      if (action === "bold") chain.toggleBold().run();
+      if (action === "italic") chain.toggleItalic().run();
+      if (action === "bulletList") chain.toggleBulletList().run();
+      if (action === "orderedList") chain.toggleOrderedList().run();
+      if (action === "blockquote") chain.toggleBlockquote().run();
+      if (action === "h2") chain.toggleHeading({ level: 2 }).run();
+      if (action === "h3") chain.toggleHeading({ level: 3 }).run();
+      if (action === "undo") chain.undo().run();
+      if (action === "redo") chain.redo().run();
+      if (action === "link") {
+        const previousUrl = editor.getAttributes("link").href || "";
+        const url = window.prompt("Enter URL", previousUrl);
+        if (url === null) return;
+        if (!url.trim()) {
+          editor.chain().focus().unsetLink().run();
+          return;
+        }
+        editor.chain().focus().extendMarkRange("link").setLink({ href: url.trim() }).run();
+      }
+    });
+
+    const form = textarea.closest("form");
+    if (form) {
+      form.addEventListener("submit", () => {
+        textarea.value = editor.getHTML();
+      });
+    }
+  });
+</script>
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-12 col-xl-10">
+    <div class="d-flex justify-content-between align-items-center gap-3 mb-4">
+      <p class="text-secondary mb-0">{{ page_subtitle }}</p>
+      <a href="{{ cancel_url }}" class="btn btn-outline-secondary">Back</a>
+    </div>
+    <div class="card shadow-sm border-0">
+      <div class="card-body p-4 p-lg-5">
+        <form method="post" enctype="multipart/form-data" novalidate>
+          {% csrf_token %}
+          {% for hidden in form.hidden_fields %}{{ hidden }}{% endfor %}
+          {% if form.tag_suggestions %}
+            <datalist id="tag-suggestions">
+              {% for tag_name in form.tag_suggestions %}
+                <option value="{{ tag_name }}"></option>
+              {% endfor %}
+            </datalist>
+          {% endif %}
+          {% if form.image_asset_ids %}
+            <div class="mb-4">
+              <div class="form-field-shell{% if form.image_asset_ids.errors %} has-error{% endif %}">
+                <div class="d-flex align-items-center justify-content-between gap-3 mb-3">
+                  <div>
+                    <label class="form-label fw-semibold mb-1">Media</label>
+                    <div class="small text-secondary" id="media-count-{{ form.image_asset_ids.id_for_label }}">
+                      {% if form.initial_media_assets %}{{ form.initial_media_assets|length }} asset(s) selected{% else %}No media selected{% endif %}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    class="btn btn-outline-primary btn-sm"
+                    data-open-media-picker
+                    data-input-id="{{ form.image_asset_ids.id_for_label }}"
+                    data-preview-id="media-preview-{{ form.image_asset_ids.id_for_label }}"
+                    data-count-id="media-count-{{ form.image_asset_ids.id_for_label }}"
+                    data-empty-id="media-empty-{{ form.image_asset_ids.id_for_label }}"
+                    data-picker-mode="multiple"
+                  >
+                    Open Media Library
+                  </button>
+                </div>
+                <div id="media-preview-{{ form.image_asset_ids.id_for_label }}" class="media-selection-grid">
+                  {% for asset in form.initial_media_assets %}
+                    <div class="media-selection-card" data-media-item-json='{"id": {{ asset.id }}, "document_id": "{{ asset.document_id }}", "url": "{{ asset.url|escapejs }}", "thumbnail_url": "{{ asset.thumbnail_url|escapejs }}", "original_filename": "{{ asset.original_filename|escapejs }}"}'>
+                      <img src="{{ asset.thumbnail_url }}" alt="{{ asset.original_filename }}" class="media-selection-thumb">
+                      <div class="media-selection-meta">
+                        <div class="fw-semibold text-truncate">{{ asset.original_filename }}</div>
+                        <div class="small text-secondary text-truncate">{{ asset.document_id }}</div>
+                      </div>
+                    </div>
+                  {% endfor %}
+                </div>
+                <div id="media-empty-{{ form.image_asset_ids.id_for_label }}" class="media-selection-empty small text-secondary{% if form.initial_media_assets %} d-none{% endif %}">
+                  No media selected yet.
+                </div>
+                {% if form.image_asset_ids.help_text %}<div class="form-text">{{ form.image_asset_ids.help_text }}</div>{% endif %}
+                {% if form.image_asset_ids.errors %}<div class="text-danger small mt-2">{{ form.image_asset_ids.errors|join:", " }}</div>{% endif %}
+              </div>
+            </div>
+          {% endif %}
+          {% with wide_fields="excerpt,content,description,reason,moderator_note,comment_prompt,reply_prompt,content_prompt,content_scenario_prompt,content_last_scenario,content_category_document_ids,openai_models,anthropic_models,tag_names,categories" compact_fields="title,name,slug,type,author,parent,status,moderator,category,is_published,is_enabled,is_connected" %}
+          <div class="row g-4">
+            {% for field in form.visible_fields %}
+              <div class="col-12 {% if field.name in compact_fields %}col-lg-6{% endif %}">
+                <div class="form-field-shell{% if field.errors %} has-error{% endif %}">
+                {% if field.field.widget.input_type == "checkbox" %}
+                  <div class="form-check">{{ field }} <label class="form-check-label fw-semibold" for="{{ field.id_for_label }}">{{ field.label }}</label></div>
+                {% else %}
+                  <label class="form-label fw-semibold" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                  {{ field }}
+                {% endif %}
+                {% if field.help_text %}<div class="form-text">{{ field.help_text }}</div>{% endif %}
+                {% if field.errors %}<div class="text-danger small mt-2">{{ field.errors|join:", " }}</div>{% endif %}
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+          {% endwith %}
+          {% if form.non_field_errors %}<div class="alert alert-danger mt-4">{{ form.non_field_errors|join:", " }}</div>{% endif %}
+          <div class="d-flex flex-wrap gap-2 mt-4">
+            <button type="submit" class="btn btn-primary">Save</button>
+            <a href="{{ cancel_url }}" class="btn btn-outline-secondary">Cancel</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="mediaPickerModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header">
+        <div>
+          <h5 class="modal-title mb-1">Media Library</h5>
+          <div class="small text-secondary" data-media-picker-status>Browse Cloudinary folders and select assets.</div>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body p-0">
+        <input type="hidden" data-media-picker-folder value="">
+        <div class="media-picker-layout">
+          <aside class="media-picker-sidebar">
+            <div class="media-picker-sidebar-head">Folders</div>
+            <div data-media-picker-folders></div>
+          </aside>
+          <section class="media-picker-main">
+            <div class="media-picker-toolbar">
+              <div class="row g-2 align-items-center">
+                <div class="col-12 col-lg-4">
+                  <input type="text" class="form-control" placeholder="Search by filename or public id" data-media-picker-search>
+                </div>
+                <div class="col-6 col-lg-2">
+                  <select class="form-select" data-media-picker-type>
+                    <option value="image">Images</option>
+                    <option value="video">Videos</option>
+                    <option value="raw">Raw</option>
+                    <option value="all">All</option>
+                  </select>
+                </div>
+                <div class="col-6 col-lg-3">
+                  <select class="form-select" data-media-picker-sort>
+                    <option value="created_at:desc">Newest first</option>
+                    <option value="created_at:asc">Oldest first</option>
+                    <option value="public_id:asc">Name A-Z</option>
+                    <option value="public_id:desc">Name Z-A</option>
+                  </select>
+                </div>
+                <div class="col-12 col-lg-3">
+                  <div class="d-flex gap-2 justify-content-lg-end">
+                    <label class="btn btn-outline-primary btn-sm mb-0">
+                      Upload
+                      <input type="file" class="d-none" data-media-picker-upload multiple>
+                    </label>
+                    <button type="button" class="btn btn-outline-secondary btn-sm" data-media-picker-refresh>Refresh</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="media-picker-grid" data-media-picker-grid></div>
+            <div class="media-picker-empty text-secondary small d-none" data-media-picker-empty>No assets found.</div>
+            <div class="p-3 text-center">
+              <button type="button" class="btn btn-outline-secondary btn-sm d-none" data-media-picker-next>Load more</button>
+            </div>
+          </section>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary" data-media-picker-done>Use selected assets</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,61 @@
+<li class="category-tree-item" data-document-id="{{ node.category.document_id }}">
+  {% with assignments=node.category.moderator_assignments.all %}
+  <div class="category-tree-row">
+    <div class="category-tree-main">
+      <button type="button" class="category-drag-handle" title="Drag to reorder">
+        <i class="bi bi-grip-vertical"></i>
+      </button>
+      <div>
+        <div class="fw-semibold d-flex align-items-center gap-2">
+          {{ node.category.name }}
+          {% if assignments %}
+            <span class="badge text-bg-info" title="{% for a in assignments %}{% if not forloop.first %}, {% endif %}{{ a.moderator.email }}{% endfor %}">{{ assignments|length }} mod</span>
+          {% else %}
+            <span class="badge text-bg-secondary">No mod</span>
+          {% endif %}
+        </div>
+        <div class="small text-secondary">{{ node.category.slug }}</div>
+      </div>
+    </div>
+    <div class="category-tree-meta">
+      <form method="post" action="{% url 'admin_app:category-toggle-status' node.category.document_id %}" class="d-inline-flex align-items-center">
+        {% csrf_token %}
+        <button
+          type="submit"
+          class="status-toggle {% if node.category.status == 'published' %}is-on{% endif %}"
+          title="{{ node.category.status }}"
+          aria-label="{{ node.category.status }}"
+        >
+          <span class="status-toggle-knob"></span>
+        </button>
+      </form>
+      <div class="d-inline-flex gap-1">
+        <button
+          type="button"
+          class="btn btn-sm btn-outline-primary icon-action-btn"
+          title="Assign moderator"
+          data-bs-toggle="modal"
+          data-bs-target="#assignModeratorModal"
+          data-assign-moderator="true"
+          data-category-name="{{ node.category.name }}"
+          data-action-url="{% url 'admin_app:category-assign-moderator' node.category.document_id %}"
+          data-current-moderators="{% for a in assignments %}{{ a.pk }}|{{ a.moderator.email }}{% if not forloop.last %}||{% endif %}{% endfor %}"
+        >
+          <i class="bi bi-person-plus"></i>
+        </button>
+        <a href="{% url 'admin_app:category-update' node.category.document_id %}" class="btn btn-sm btn-outline-secondary icon-action-btn" title="Edit">
+          <i class="bi bi-pencil-square"></i>
+        </a>
+        <a href="{% url 'admin_app:category-delete' node.category.document_id %}" class="btn btn-sm btn-outline-danger icon-action-btn" title="Delete">
+          <i class="bi bi-trash"></i>
+        </a>
+      </div>
+    </div>
+  </div>
+  {% endwith %}
+  <ul class="category-tree-list">
+    {% for node in node.children %}
+      {% include "admin_app/category_tree_node.html" with node=node %}
+    {% endfor %}
+  </ul>
+</li>

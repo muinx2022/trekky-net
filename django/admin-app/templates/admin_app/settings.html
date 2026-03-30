@@ -1,0 +1,516 @@
+{% extends "admin_app/base.html" %}
+
+{% block title %}{{ page_title }} | Trekky Admin{% endblock %}
+{% block page_title %}{{ page_title }}{% endblock %}
+
+{% block content %}
+<div class="mb-4 text-secondary">{{ page_subtitle }}</div>
+<form method="post" novalidate>
+  {% csrf_token %}
+  <input type="hidden" name="active_tab" id="active-settings-tab" value="{{ active_settings_tab|default:'' }}">
+
+  <div class="card shadow-sm border-0 settings-shell">
+    <div class="card-body p-0">
+      <div class="row g-0">
+        <div class="col-12 col-xl-3 border-end">
+          <div class="settings-sidebar p-3 p-xl-4">
+            <div class="settings-sidebar-label">Configuration</div>
+            <div class="nav flex-xl-column nav-pills settings-tabs" id="settings-tab" role="tablist" aria-orientation="vertical">
+              <button class="nav-link" id="settings-ai-content-tab" data-bs-toggle="pill" data-bs-target="#settings-ai-content" type="button" role="tab" aria-controls="settings-ai-content" aria-selected="false">
+                <span class="settings-tab-title">AI Content</span>
+                <small>Scenario, cron, post output</small>
+              </button>
+              <button class="nav-link" id="settings-ai-comments-tab" data-bs-toggle="pill" data-bs-target="#settings-ai-comments" type="button" role="tab" aria-controls="settings-ai-comments" aria-selected="false">
+                <span class="settings-tab-title">AI Comments</span>
+                <small>Comment cron and reply behavior</small>
+              </button>
+              <button class="nav-link" id="settings-ai-providers-tab" data-bs-toggle="pill" data-bs-target="#settings-ai-providers" type="button" role="tab" aria-controls="settings-ai-providers" aria-selected="false">
+                <span class="settings-tab-title">AI Providers</span>
+                <small>OpenAI and Anthropic credentials</small>
+              </button>
+              <button class="nav-link" id="settings-image-search-tab" data-bs-toggle="pill" data-bs-target="#settings-image-search" type="button" role="tab" aria-controls="settings-image-search" aria-selected="false">
+                <span class="settings-tab-title">Image Search</span>
+                <small>Google and Pexels integration</small>
+              </button>
+              <button class="nav-link" id="settings-media-storage-tab" data-bs-toggle="pill" data-bs-target="#settings-media-storage" type="button" role="tab" aria-controls="settings-media-storage" aria-selected="false">
+                <span class="settings-tab-title">Media Storage</span>
+                <small>Cloudinary and Cloudflare R2</small>
+              </button>
+              <button class="nav-link" id="settings-google-oauth-tab" data-bs-toggle="pill" data-bs-target="#settings-google-oauth" type="button" role="tab" aria-controls="settings-google-oauth" aria-selected="false">
+                <span class="settings-tab-title">Google OAuth</span>
+                <small>Client ID, secret and redirect URI</small>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-12 col-xl-9">
+          <div class="tab-content p-3 p-lg-4 p-xl-5" id="settings-tabContent">
+
+            <div class="tab-pane fade show active" id="settings-overview" tabindex="0">
+              <div class="settings-pane-head">
+                <h2>Settings</h2>
+                <p>Chọn một mục ở bên trái để cấu hình. Dưới đây là tổng quan các nhóm cài đặt hiện có.</p>
+              </div>
+              <div class="row g-3">
+                <div class="col-12 col-md-6">
+                  <div class="p-3 border rounded-2 h-100">
+                    <div class="fw-semibold mb-1">AI Content</div>
+                    <div class="text-secondary small">Lên lịch tạo bài viết tự động: chọn chuyên mục, cron schedule, số bài mỗi lần chạy, prompt nội dung và cách chèn ảnh.</div>
+                  </div>
+                </div>
+                <div class="col-12 col-md-6">
+                  <div class="p-3 border rounded-2 h-100">
+                    <div class="fw-semibold mb-1">AI Comments</div>
+                    <div class="text-secondary small">Tự động tạo bình luận và trả lời bình luận theo cron schedule, với prompt tuỳ chỉnh riêng cho comment và reply.</div>
+                  </div>
+                </div>
+                <div class="col-12 col-md-6">
+                  <div class="p-3 border rounded-2 h-100">
+                    <div class="fw-semibold mb-1">AI Providers</div>
+                    <div class="text-secondary small">Cấu hình API key cho OpenAI và Anthropic, chọn model sử dụng cho từng nhà cung cấp.</div>
+                  </div>
+                </div>
+                <div class="col-12 col-md-6">
+                  <div class="p-3 border rounded-2 h-100">
+                    <div class="fw-semibold mb-1">Image Search</div>
+                    <div class="text-secondary small">API key cho Google Custom Search và Pexels để tự động tìm ảnh minh hoạ khi tạo bài viết.</div>
+                  </div>
+                </div>
+                <div class="col-12 col-md-6">
+                  <div class="p-3 border rounded-2 h-100">
+                    <div class="fw-semibold mb-1">Media Storage</div>
+                    <div class="text-secondary small">Chọn nơi lưu trữ file: Local, Cloudinary hoặc Cloudflare R2. Điền thông tin xác thực tương ứng.</div>
+                  </div>
+                </div>
+                <div class="col-12 col-md-6">
+                  <div class="p-3 border rounded-2 h-100">
+                    <div class="fw-semibold mb-1">Google OAuth</div>
+                    <div class="text-secondary small">Client ID, Client Secret và Redirect URI để cho phép đăng nhập bằng tài khoản Google.</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="tab-pane fade" id="settings-ai-content" role="tabpanel" aria-labelledby="settings-ai-content-tab" tabindex="0">
+              <div class="settings-pane-head">
+                <h2>AI Content</h2>
+                <p>Control scheduled post generation, selected categories, prompts, and media placement.</p>
+              </div>
+              <div class="settings-section mb-4">
+                <div class="settings-subhead">Run Control</div>
+                <div class="row g-3">
+                  <div class="col-12">
+                    <div class="form-check">
+                      {{ ai_form.content_enabled }}
+                      <label class="form-check-label fw-semibold" for="{{ ai_form.content_enabled.id_for_label }}">{{ ai_form.content_enabled.label }}</label>
+                    </div>
+                    {% if ai_form.content_enabled.errors %}<div class="text-danger small mt-2">{{ ai_form.content_enabled.errors|join:", " }}</div>{% endif %}
+                  </div>
+                  <div class="col-12 col-lg-4">
+                    <label class="form-label fw-semibold" for="{{ ai_form.timezone.id_for_label }}">{{ ai_form.timezone.label }}</label>
+                    {{ ai_form.timezone }}
+                    {% if ai_form.timezone.errors %}<div class="text-danger small mt-2">{{ ai_form.timezone.errors|join:", " }}</div>{% endif %}
+                  </div>
+                  <div class="col-12 col-lg-4">
+                    <label class="form-label fw-semibold" for="{{ ai_form.content_cron.id_for_label }}">{{ ai_form.content_cron.label }}</label>
+                    {{ ai_form.content_cron }}
+                    {% if ai_form.content_cron.errors %}<div class="text-danger small mt-2">{{ ai_form.content_cron.errors|join:", " }}</div>{% endif %}
+                  </div>
+                  <div class="col-12 col-lg-4">
+                    <label class="form-label fw-semibold" for="{{ ai_form.content_posts_per_run.id_for_label }}">{{ ai_form.content_posts_per_run.label }}</label>
+                    {{ ai_form.content_posts_per_run }}
+                    {% if ai_form.content_posts_per_run.errors %}<div class="text-danger small mt-2">{{ ai_form.content_posts_per_run.errors|join:", " }}</div>{% endif %}
+                  </div>
+                </div>
+              </div>
+
+              <div class="settings-section mb-4">
+                <div class="settings-subhead">Content Scope</div>
+                <div class="row g-3">
+                  <div class="col-12">
+                    <label class="form-label fw-semibold" for="{{ ai_form.content_category_document_ids.id_for_label }}">{{ ai_form.content_category_document_ids.label }}</label>
+                    {{ ai_form.content_category_document_ids }}
+                    {% if ai_form.content_category_document_ids.help_text %}<div class="form-text">{{ ai_form.content_category_document_ids.help_text }}</div>{% endif %}
+                    {% if ai_form.content_category_document_ids.errors %}<div class="text-danger small mt-2">{{ ai_form.content_category_document_ids.errors|join:", " }}</div>{% endif %}
+                  </div>
+                  <div class="col-12">
+                    <label class="form-label fw-semibold" for="{{ ai_form.content_scenario_prompt.id_for_label }}">{{ ai_form.content_scenario_prompt.label }}</label>
+                    {{ ai_form.content_scenario_prompt }}
+                    {% if ai_form.content_scenario_prompt.errors %}<div class="text-danger small mt-2">{{ ai_form.content_scenario_prompt.errors|join:", " }}</div>{% endif %}
+                  </div>
+                  <div class="col-12">
+                    <label class="form-label fw-semibold" for="{{ ai_form.content_last_scenario.id_for_label }}">{{ ai_form.content_last_scenario.label }}</label>
+                    {{ ai_form.content_last_scenario }}
+                    {% if ai_form.content_last_scenario.errors %}<div class="text-danger small mt-2">{{ ai_form.content_last_scenario.errors|join:", " }}</div>{% endif %}
+                  </div>
+                  <div class="col-12">
+                    <label class="form-label fw-semibold" for="{{ ai_form.content_prompt.id_for_label }}">{{ ai_form.content_prompt.label }}</label>
+                    {{ ai_form.content_prompt }}
+                    {% if ai_form.content_prompt.errors %}<div class="text-danger small mt-2">{{ ai_form.content_prompt.errors|join:", " }}</div>{% endif %}
+                  </div>
+                </div>
+              </div>
+
+              <div class="settings-section">
+                <div class="settings-subhead">Media Output</div>
+                <div class="row g-3">
+                  <div class="col-12 col-lg-4">
+                    <label class="form-label fw-semibold" for="{{ ai_form.content_image_provider.id_for_label }}">{{ ai_form.content_image_provider.label }}</label>
+                    {{ ai_form.content_image_provider }}
+                    {% if ai_form.content_image_provider.errors %}<div class="text-danger small mt-2">{{ ai_form.content_image_provider.errors|join:", " }}</div>{% endif %}
+                  </div>
+                  <div class="col-12 col-lg-4">
+                    <label class="form-label fw-semibold" for="{{ ai_form.content_image_count_min.id_for_label }}">{{ ai_form.content_image_count_min.label }}</label>
+                    {{ ai_form.content_image_count_min }}
+                    {% if ai_form.content_image_count_min.errors %}<div class="text-danger small mt-2">{{ ai_form.content_image_count_min.errors|join:", " }}</div>{% endif %}
+                  </div>
+                  <div class="col-12 col-lg-4">
+                    <label class="form-label fw-semibold" for="{{ ai_form.content_image_count_max.id_for_label }}">{{ ai_form.content_image_count_max.label }}</label>
+                    {{ ai_form.content_image_count_max }}
+                    {% if ai_form.content_image_count_max.errors %}<div class="text-danger small mt-2">{{ ai_form.content_image_count_max.errors|join:", " }}</div>{% endif %}
+                  </div>
+                  <div class="col-12">
+                    <label class="form-label fw-semibold" for="{{ ai_form.content_preferred_media_mode.id_for_label }}">{{ ai_form.content_preferred_media_mode.label }}</label>
+                    {{ ai_form.content_preferred_media_mode }}
+                    {% if ai_form.content_preferred_media_mode.errors %}<div class="text-danger small mt-2">{{ ai_form.content_preferred_media_mode.errors|join:", " }}</div>{% endif %}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="tab-pane fade" id="settings-ai-comments" role="tabpanel" aria-labelledby="settings-ai-comments-tab" tabindex="0">
+              <div class="settings-pane-head">
+                <h2>AI Comments</h2>
+                <p>Configure auto-generated comments and reply behavior on published posts.</p>
+              </div>
+              <div class="settings-section mb-4">
+                <div class="row g-3">
+                  <div class="col-12">
+                    <div class="form-check">
+                      {{ ai_form.comments_enabled }}
+                      <label class="form-check-label fw-semibold" for="{{ ai_form.comments_enabled.id_for_label }}">{{ ai_form.comments_enabled.label }}</label>
+                    </div>
+                    {% if ai_form.comments_enabled.errors %}<div class="text-danger small mt-2">{{ ai_form.comments_enabled.errors|join:", " }}</div>{% endif %}
+                  </div>
+                  <div class="col-12 col-lg-6">
+                    <label class="form-label fw-semibold" for="{{ ai_form.comments_cron.id_for_label }}">{{ ai_form.comments_cron.label }}</label>
+                    {{ ai_form.comments_cron }}
+                    {% if ai_form.comments_cron.errors %}<div class="text-danger small mt-2">{{ ai_form.comments_cron.errors|join:", " }}</div>{% endif %}
+                  </div>
+                  <div class="col-12 col-lg-6">
+                    <label class="form-label fw-semibold" for="{{ ai_form.comments_per_run.id_for_label }}">{{ ai_form.comments_per_run.label }}</label>
+                    {{ ai_form.comments_per_run }}
+                    {% if ai_form.comments_per_run.errors %}<div class="text-danger small mt-2">{{ ai_form.comments_per_run.errors|join:", " }}</div>{% endif %}
+                  </div>
+                  <div class="col-12">
+                    <div class="form-check">
+                      {{ ai_form.comments_allow_replies }}
+                      <label class="form-check-label fw-semibold" for="{{ ai_form.comments_allow_replies.id_for_label }}">{{ ai_form.comments_allow_replies.label }}</label>
+                    </div>
+                    {% if ai_form.comments_allow_replies.errors %}<div class="text-danger small mt-2">{{ ai_form.comments_allow_replies.errors|join:", " }}</div>{% endif %}
+                  </div>
+                  <div class="col-12">
+                    <label class="form-label fw-semibold" for="{{ ai_form.comment_prompt.id_for_label }}">{{ ai_form.comment_prompt.label }}</label>
+                    {{ ai_form.comment_prompt }}
+                    {% if ai_form.comment_prompt.errors %}<div class="text-danger small mt-2">{{ ai_form.comment_prompt.errors|join:", " }}</div>{% endif %}
+                  </div>
+                  <div class="col-12">
+                    <label class="form-label fw-semibold" for="{{ ai_form.reply_prompt.id_for_label }}">{{ ai_form.reply_prompt.label }}</label>
+                    {{ ai_form.reply_prompt }}
+                    {% if ai_form.reply_prompt.errors %}<div class="text-danger small mt-2">{{ ai_form.reply_prompt.errors|join:", " }}</div>{% endif %}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="tab-pane fade" id="settings-ai-providers" role="tabpanel" aria-labelledby="settings-ai-providers-tab" tabindex="0">
+              <div class="settings-pane-head">
+                <h2>AI Providers</h2>
+                <p>Credentials and model pools for text generation providers.</p>
+              </div>
+              <div class="row g-4">
+                <div class="col-12 col-xl-6">
+                  <div class="settings-section h-100">
+                    <div class="settings-subhead">OpenAI</div>
+                    <div class="row g-3">
+                      <div class="col-12">
+                        <div class="form-check">
+                          {{ ai_form.openai_enabled }}
+                          <label class="form-check-label fw-semibold" for="{{ ai_form.openai_enabled.id_for_label }}">{{ ai_form.openai_enabled.label }}</label>
+                        </div>
+                        {% if ai_form.openai_enabled.errors %}<div class="text-danger small mt-2">{{ ai_form.openai_enabled.errors|join:", " }}</div>{% endif %}
+                      </div>
+                      <div class="col-12">
+                        <label class="form-label fw-semibold" for="{{ ai_form.openai_api_key.id_for_label }}">{{ ai_form.openai_api_key.label }}</label>
+                        {{ ai_form.openai_api_key }}
+                        {% if ai_form.openai_api_key.errors %}<div class="text-danger small mt-2">{{ ai_form.openai_api_key.errors|join:", " }}</div>{% endif %}
+                      </div>
+                      <div class="col-12">
+                        <label class="form-label fw-semibold" for="{{ ai_form.openai_models.id_for_label }}">{{ ai_form.openai_models.label }}</label>
+                        {{ ai_form.openai_models }}
+                        {% if ai_form.openai_models.errors %}<div class="text-danger small mt-2">{{ ai_form.openai_models.errors|join:", " }}</div>{% endif %}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div class="col-12 col-xl-6">
+                  <div class="settings-section h-100">
+                    <div class="settings-subhead">Anthropic</div>
+                    <div class="row g-3">
+                      <div class="col-12">
+                        <div class="form-check">
+                          {{ ai_form.anthropic_enabled }}
+                          <label class="form-check-label fw-semibold" for="{{ ai_form.anthropic_enabled.id_for_label }}">{{ ai_form.anthropic_enabled.label }}</label>
+                        </div>
+                        {% if ai_form.anthropic_enabled.errors %}<div class="text-danger small mt-2">{{ ai_form.anthropic_enabled.errors|join:", " }}</div>{% endif %}
+                      </div>
+                      <div class="col-12">
+                        <label class="form-label fw-semibold" for="{{ ai_form.anthropic_api_key.id_for_label }}">{{ ai_form.anthropic_api_key.label }}</label>
+                        {{ ai_form.anthropic_api_key }}
+                        {% if ai_form.anthropic_api_key.errors %}<div class="text-danger small mt-2">{{ ai_form.anthropic_api_key.errors|join:", " }}</div>{% endif %}
+                      </div>
+                      <div class="col-12">
+                        <label class="form-label fw-semibold" for="{{ ai_form.anthropic_models.id_for_label }}">{{ ai_form.anthropic_models.label }}</label>
+                        {{ ai_form.anthropic_models }}
+                        {% if ai_form.anthropic_models.errors %}<div class="text-danger small mt-2">{{ ai_form.anthropic_models.errors|join:", " }}</div>{% endif %}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="tab-pane fade" id="settings-image-search" role="tabpanel" aria-labelledby="settings-image-search-tab" tabindex="0">
+              <div class="settings-pane-head">
+                <h2>Image Search</h2>
+                <p>Remote image sources used by the AI content cron before upload into Django storage.</p>
+              </div>
+              <div class="row g-4">
+                <div class="col-12 col-xl-6">
+                  <div class="settings-section h-100">
+                    <div class="settings-subhead">Google Custom Search</div>
+                    <div class="row g-3">
+                      <div class="col-12">
+                        <div class="form-check">
+                          {{ ai_form.google_image_search_enabled }}
+                          <label class="form-check-label fw-semibold" for="{{ ai_form.google_image_search_enabled.id_for_label }}">{{ ai_form.google_image_search_enabled.label }}</label>
+                        </div>
+                        {% if ai_form.google_image_search_enabled.errors %}<div class="text-danger small mt-2">{{ ai_form.google_image_search_enabled.errors|join:", " }}</div>{% endif %}
+                      </div>
+                      <div class="col-12">
+                        <label class="form-label fw-semibold" for="{{ ai_form.google_image_search_api_key.id_for_label }}">{{ ai_form.google_image_search_api_key.label }}</label>
+                        {{ ai_form.google_image_search_api_key }}
+                        {% if ai_form.google_image_search_api_key.errors %}<div class="text-danger small mt-2">{{ ai_form.google_image_search_api_key.errors|join:", " }}</div>{% endif %}
+                      </div>
+                      <div class="col-12">
+                        <label class="form-label fw-semibold" for="{{ ai_form.google_image_search_engine_id.id_for_label }}">{{ ai_form.google_image_search_engine_id.label }}</label>
+                        {{ ai_form.google_image_search_engine_id }}
+                        {% if ai_form.google_image_search_engine_id.errors %}<div class="text-danger small mt-2">{{ ai_form.google_image_search_engine_id.errors|join:", " }}</div>{% endif %}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div class="col-12 col-xl-6">
+                  <div class="settings-section h-100">
+                    <div class="settings-subhead">Pexels</div>
+                    <div class="row g-3">
+                      <div class="col-12">
+                        <div class="form-check">
+                          {{ ai_form.pexels_enabled }}
+                          <label class="form-check-label fw-semibold" for="{{ ai_form.pexels_enabled.id_for_label }}">{{ ai_form.pexels_enabled.label }}</label>
+                        </div>
+                        {% if ai_form.pexels_enabled.errors %}<div class="text-danger small mt-2">{{ ai_form.pexels_enabled.errors|join:", " }}</div>{% endif %}
+                      </div>
+                      <div class="col-12">
+                        <label class="form-label fw-semibold" for="{{ ai_form.pexels_api_key.id_for_label }}">{{ ai_form.pexels_api_key.label }}</label>
+                        {{ ai_form.pexels_api_key }}
+                        {% if ai_form.pexels_api_key.errors %}<div class="text-danger small mt-2">{{ ai_form.pexels_api_key.errors|join:", " }}</div>{% endif %}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="tab-pane fade" id="settings-media-storage" role="tabpanel" aria-labelledby="settings-media-storage-tab" tabindex="0">
+              <div class="settings-pane-head">
+                <h2>Media Storage</h2>
+                <p>Choose the active media provider and keep future storage credentials ready for Cloudinary or Cloudflare R2.</p>
+              </div>
+              <div class="settings-section mb-4">
+                <div class="settings-subhead">Provider</div>
+                <div class="row g-3">
+                  <div class="col-12 col-lg-6">
+                    <label class="form-label fw-semibold" for="{{ media_form.provider.id_for_label }}">{{ media_form.provider.label }}</label>
+                    {{ media_form.provider }}
+                    {% if media_form.provider.errors %}<div class="text-danger small mt-2">{{ media_form.provider.errors|join:", " }}</div>{% endif %}
+                  </div>
+                  <div class="col-12 col-lg-6">
+                    <div class="form-check mt-lg-4 pt-lg-2">
+                      {{ media_form.cloudinary_secure }}
+                      <label class="form-check-label fw-semibold" for="{{ media_form.cloudinary_secure.id_for_label }}">{{ media_form.cloudinary_secure.label }}</label>
+                    </div>
+                    {% if media_form.cloudinary_secure.errors %}<div class="text-danger small mt-2">{{ media_form.cloudinary_secure.errors|join:", " }}</div>{% endif %}
+                  </div>
+                </div>
+              </div>
+
+              <div class="row g-4">
+                <div class="col-12 col-xl-6">
+                  <div class="settings-section h-100">
+                    <div class="settings-subhead">Cloudinary</div>
+                    <div class="row g-3">
+                      <div class="col-12">
+                        <label class="form-label fw-semibold" for="{{ media_form.cloudinary_cloud_name.id_for_label }}">{{ media_form.cloudinary_cloud_name.label }}</label>
+                        {{ media_form.cloudinary_cloud_name }}
+                        {% if media_form.cloudinary_cloud_name.errors %}<div class="text-danger small mt-2">{{ media_form.cloudinary_cloud_name.errors|join:", " }}</div>{% endif %}
+                      </div>
+                      <div class="col-12">
+                        <label class="form-label fw-semibold" for="{{ media_form.cloudinary_api_key.id_for_label }}">{{ media_form.cloudinary_api_key.label }}</label>
+                        {{ media_form.cloudinary_api_key }}
+                        {% if media_form.cloudinary_api_key.errors %}<div class="text-danger small mt-2">{{ media_form.cloudinary_api_key.errors|join:", " }}</div>{% endif %}
+                      </div>
+                      <div class="col-12">
+                        <label class="form-label fw-semibold" for="{{ media_form.cloudinary_api_secret.id_for_label }}">{{ media_form.cloudinary_api_secret.label }}</label>
+                        {{ media_form.cloudinary_api_secret }}
+                        {% if media_form.cloudinary_api_secret.errors %}<div class="text-danger small mt-2">{{ media_form.cloudinary_api_secret.errors|join:", " }}</div>{% endif %}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="col-12 col-xl-6">
+                  <div class="settings-section h-100">
+                    <div class="settings-subhead">Cloudflare R2</div>
+                    <div class="row g-3">
+                      <div class="col-12">
+                        <label class="form-label fw-semibold" for="{{ media_form.r2_account_id.id_for_label }}">{{ media_form.r2_account_id.label }}</label>
+                        {{ media_form.r2_account_id }}
+                        {% if media_form.r2_account_id.errors %}<div class="text-danger small mt-2">{{ media_form.r2_account_id.errors|join:", " }}</div>{% endif %}
+                      </div>
+                      <div class="col-12">
+                        <label class="form-label fw-semibold" for="{{ media_form.r2_access_key_id.id_for_label }}">{{ media_form.r2_access_key_id.label }}</label>
+                        {{ media_form.r2_access_key_id }}
+                        {% if media_form.r2_access_key_id.errors %}<div class="text-danger small mt-2">{{ media_form.r2_access_key_id.errors|join:", " }}</div>{% endif %}
+                      </div>
+                      <div class="col-12">
+                        <label class="form-label fw-semibold" for="{{ media_form.r2_secret_access_key.id_for_label }}">{{ media_form.r2_secret_access_key.label }}</label>
+                        {{ media_form.r2_secret_access_key }}
+                        {% if media_form.r2_secret_access_key.errors %}<div class="text-danger small mt-2">{{ media_form.r2_secret_access_key.errors|join:", " }}</div>{% endif %}
+                      </div>
+                      <div class="col-12">
+                        <label class="form-label fw-semibold" for="{{ media_form.r2_bucket_name.id_for_label }}">{{ media_form.r2_bucket_name.label }}</label>
+                        {{ media_form.r2_bucket_name }}
+                        {% if media_form.r2_bucket_name.errors %}<div class="text-danger small mt-2">{{ media_form.r2_bucket_name.errors|join:", " }}</div>{% endif %}
+                      </div>
+                      <div class="col-12">
+                        <label class="form-label fw-semibold" for="{{ media_form.r2_endpoint_url.id_for_label }}">{{ media_form.r2_endpoint_url.label }}</label>
+                        {{ media_form.r2_endpoint_url }}
+                        {% if media_form.r2_endpoint_url.errors %}<div class="text-danger small mt-2">{{ media_form.r2_endpoint_url.errors|join:", " }}</div>{% endif %}
+                      </div>
+                      <div class="col-12">
+                        <label class="form-label fw-semibold" for="{{ media_form.r2_public_base_url.id_for_label }}">{{ media_form.r2_public_base_url.label }}</label>
+                        {{ media_form.r2_public_base_url }}
+                        {% if media_form.r2_public_base_url.errors %}<div class="text-danger small mt-2">{{ media_form.r2_public_base_url.errors|join:", " }}</div>{% endif %}
+                      </div>
+                      <div class="col-12">
+                        <label class="form-label fw-semibold" for="{{ media_form.r2_custom_domain.id_for_label }}">{{ media_form.r2_custom_domain.label }}</label>
+                        {{ media_form.r2_custom_domain }}
+                        {% if media_form.r2_custom_domain.errors %}<div class="text-danger small mt-2">{{ media_form.r2_custom_domain.errors|join:", " }}</div>{% endif %}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="tab-pane fade" id="settings-google-oauth" role="tabpanel" aria-labelledby="settings-google-oauth-tab" tabindex="0">
+              <div class="settings-pane-head">
+                <h2>Google OAuth</h2>
+                <p>Configure Google OAuth credentials for social login. These values override environment variables.</p>
+              </div>
+              <div class="settings-section">
+                <div class="row g-3">
+                  <div class="col-12">
+                    <label class="form-label fw-semibold" for="{{ google_oauth_form.client_id.id_for_label }}">{{ google_oauth_form.client_id.label }}</label>
+                    {{ google_oauth_form.client_id }}
+                    {% if google_oauth_form.client_id.errors %}<div class="text-danger small mt-2">{{ google_oauth_form.client_id.errors|join:", " }}</div>{% endif %}
+                  </div>
+                  <div class="col-12">
+                    <label class="form-label fw-semibold" for="{{ google_oauth_form.client_secret.id_for_label }}">{{ google_oauth_form.client_secret.label }}</label>
+                    {{ google_oauth_form.client_secret }}
+                    {% if google_oauth_form.client_secret.errors %}<div class="text-danger small mt-2">{{ google_oauth_form.client_secret.errors|join:", " }}</div>{% endif %}
+                  </div>
+                  <div class="col-12">
+                    <label class="form-label fw-semibold" for="{{ google_oauth_form.redirect_uri.id_for_label }}">{{ google_oauth_form.redirect_uri.label }}</label>
+                    {{ google_oauth_form.redirect_uri }}
+                    <div class="text-muted small mt-1">Must match the authorized redirect URI in Google Cloud Console.</div>
+                    {% if google_oauth_form.redirect_uri.errors %}<div class="text-danger small mt-2">{{ google_oauth_form.redirect_uri.errors|join:", " }}</div>{% endif %}
+                  </div>
+                  <div class="col-12">
+                    <label class="form-label fw-semibold" for="{{ google_oauth_form.frontend_url.id_for_label }}">{{ google_oauth_form.frontend_url.label }}</label>
+                    {{ google_oauth_form.frontend_url }}
+                    <div class="text-muted small mt-1">Frontend base URL for OAuth callback redirect (e.g. http://localhost:3000).</div>
+                    {% if google_oauth_form.frontend_url.errors %}<div class="text-danger small mt-2">{{ google_oauth_form.frontend_url.errors|join:", " }}</div>{% endif %}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="d-flex gap-2 mt-4">
+    <button type="submit" class="btn btn-primary">Save Settings</button>
+  </div>
+</form>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    const hiddenInput = document.getElementById("active-settings-tab");
+    const tabButtons = Array.from(document.querySelectorAll('#settings-tab [data-bs-toggle="pill"]'));
+    if (!hiddenInput || !tabButtons.length || typeof bootstrap === "undefined" || !bootstrap.Tab) {
+      return;
+    }
+
+    const overviewPane = document.getElementById("settings-overview");
+
+    const showOverview = () => {
+      tabButtons.forEach((btn) => { btn.classList.remove("active"); btn.setAttribute("aria-selected", "false"); });
+      document.querySelectorAll("#settings-tabContent .tab-pane").forEach((p) => p.classList.remove("show", "active"));
+      if (overviewPane) { overviewPane.classList.add("show", "active"); }
+      hiddenInput.value = "";
+    };
+
+    const activateTab = (paneId) => {
+      if (!paneId) { showOverview(); return; }
+      const targetButton = tabButtons.find((button) => {
+        const target = button.getAttribute("data-bs-target") || "";
+        return target === "#" + paneId;
+      });
+      if (targetButton) {
+        if (overviewPane) overviewPane.classList.remove("show", "active");
+        bootstrap.Tab.getOrCreateInstance(targetButton).show();
+      } else {
+        showOverview();
+      }
+    };
+
+    tabButtons.forEach((button) => {
+      button.addEventListener("shown.bs.tab", function (event) {
+        const targetSelector = event.target.getAttribute("data-bs-target") || "";
+        hiddenInput.value = targetSelector.replace(/^#/, "");
+        if (overviewPane) overviewPane.classList.remove("show", "active");
+      });
+    });
+
+    activateTab(hiddenInput.value);
+  });
+</script>
+{% endblock %}

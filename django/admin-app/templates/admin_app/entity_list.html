@@ -1,0 +1,358 @@
+{% extends "admin_app/base.html" %}
+
+{% block title %}{{ page_title }} | Trekky Admin{% endblock %}
+{% block page_title %}{{ page_title }}{% endblock %}
+{% block extra_js %}
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    const modal = document.getElementById("assignModeratorModal");
+    if (modal) {
+      const categoryLabel = modal.querySelector("[data-category-label]");
+      const form = modal.querySelector("form");
+
+      document.querySelectorAll("[data-assign-moderator]").forEach((button) => {
+        button.addEventListener("click", () => {
+          const categoryName = button.getAttribute("data-category-name") || "this category";
+          const actionUrl = button.getAttribute("data-action-url") || "";
+          if (categoryLabel) categoryLabel.textContent = categoryName;
+          if (form) form.setAttribute("action", actionUrl);
+        });
+      });
+    }
+
+    const seedForm = document.querySelector("[data-seed-users-form]");
+    if (seedForm) {
+      const status = document.querySelector("[data-seed-users-status]");
+      const submitButton = seedForm.querySelector('button[type="submit"]');
+      const input = seedForm.querySelector('input[name="count"]');
+
+      seedForm.addEventListener("submit", () => {
+        if (status) {
+          status.classList.remove("d-none");
+        }
+        if (submitButton) {
+          submitButton.disabled = true;
+        }
+        if (input) {
+          input.readOnly = true;
+        }
+      });
+    }
+
+    const seedDeleteForm = document.querySelector("[data-seed-delete-form]");
+    if (seedDeleteForm) {
+      const selectAll = seedDeleteForm.querySelector("[data-seed-select-all]");
+      const rowCheckboxes = Array.from(seedDeleteForm.querySelectorAll("[data-seed-user-checkbox]"));
+      const deleteButton = document.querySelector("[data-seed-delete-button]");
+
+      const syncDeleteState = () => {
+        const selectedCount = rowCheckboxes.filter((checkbox) => checkbox.checked).length;
+        if (deleteButton) {
+          deleteButton.disabled = selectedCount === 0;
+        }
+        if (selectAll) {
+          selectAll.checked = rowCheckboxes.length > 0 && selectedCount === rowCheckboxes.length;
+          selectAll.indeterminate = selectedCount > 0 && selectedCount < rowCheckboxes.length;
+        }
+      };
+
+      if (selectAll) {
+        selectAll.addEventListener("change", () => {
+          rowCheckboxes.forEach((checkbox) => {
+            checkbox.checked = selectAll.checked;
+          });
+          syncDeleteState();
+        });
+      }
+
+      rowCheckboxes.forEach((checkbox) => {
+        checkbox.addEventListener("change", syncDeleteState);
+      });
+
+      seedDeleteForm.addEventListener("submit", (event) => {
+        const selectedCount = rowCheckboxes.filter((checkbox) => checkbox.checked).length;
+        if (!selectedCount) {
+          event.preventDefault();
+          return;
+        }
+        if (!window.confirm(`Delete ${selectedCount} selected seeded user(s)?`)) {
+          event.preventDefault();
+          return;
+        }
+        if (deleteButton) {
+          deleteButton.disabled = true;
+        }
+      });
+
+      syncDeleteState();
+    }
+  });
+</script>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+  <div class="d-flex flex-column gap-2">
+    {% if active_nav == "users" %}
+      <div class="btn-group btn-group-sm" role="group" aria-label="User tabs">
+        <a href="{% url 'admin_app:user-list' %}?tab=user" class="btn {% if current_user_tab == 'user' %}btn-primary{% else %}btn-outline-secondary{% endif %}">User</a>
+        <a href="{% url 'admin_app:user-list' %}?tab=seed" class="btn {% if current_user_tab == 'seed' %}btn-primary{% else %}btn-outline-secondary{% endif %}">Seed User</a>
+      </div>
+    {% endif %}
+    <p class="text-secondary mb-0">{{ page_subtitle }}</p>
+  </div>
+  <div class="d-flex flex-wrap gap-2 align-items-center">
+    {% if active_nav == "users" and current_user_tab == "seed" %}
+      <span class="small text-secondary">Generated seeds: <strong>{{ generated_seed_user_count }}</strong></span>
+      <span class="small text-secondary">Default password: <code>{{ seed_default_password }}</code></span>
+      <form method="post" action="{% url 'admin_app:user-seed' %}" class="d-inline-flex align-items-center gap-2" data-seed-users-form>
+        {% csrf_token %}
+        <input type="number" name="count" value="20" min="1" max="200" class="form-control form-control-sm" style="width: 5.5rem;">
+        <button type="submit" class="btn btn-outline-primary btn-sm">Seed users</button>
+      </form>
+      <span class="small text-secondary d-none" data-seed-users-status>
+        <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+        Seeding users...
+      </span>
+      <button type="submit" class="btn btn-outline-danger btn-sm" disabled data-seed-delete-button form="seed-delete-form">Delete selected</button>
+    {% endif %}
+    {% if create_url %}<a href="{{ create_url }}" class="btn btn-primary">{{ create_label }}</a>{% endif %}
+  </div>
+</div>
+
+<div class="card shadow-sm border-0">
+  <div class="card-body border-bottom">
+    <form method="get" class="row g-2 align-items-center">
+      {% if active_nav == "users" %}
+        <input type="hidden" name="tab" value="{{ current_user_tab }}">
+      {% endif %}
+      <div class="col-12 col-md-6 col-lg-5">
+        <input type="search" name="q" value="{{ query }}" class="form-control" placeholder="Search {{ page_title|lower }}">
+      </div>
+      <div class="col-auto">
+        <button type="submit" class="btn btn-outline-secondary">Search</button>
+      </div>
+    </form>
+  </div>
+  {% if active_nav == "users" and current_user_tab == "seed" %}
+  <form method="post" action="{% url 'admin_app:user-seed-delete' %}" id="seed-delete-form" data-seed-delete-form style="display:none">
+    {% csrf_token %}
+  </form>
+  {% endif %}
+  <div class="table-responsive">
+    <table class="table admin-table admin-table-stack align-middle mb-0">
+      <thead>
+        <tr>
+          {% for column in columns %}
+            <th>
+              {% if active_nav == "users" and current_user_tab == "seed" and column == "Select" %}
+                <input type="checkbox" class="form-check-input" data-seed-select-all>
+              {% else %}
+                {{ column }}
+              {% endif %}
+            </th>
+          {% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in items %}
+          <tr{% if active_nav == "posts" %} class="admin-post-row"{% endif %}>
+            {% if active_nav == "posts" %}
+              <td data-label="Title" class="admin-table-primary-cell"><div class="fw-semibold"><a href="{% url detail_url_name item.document_id %}" class="text-decoration-none">{{ item.title }}</a></div><div class="small text-secondary">{{ item.slug }}</div></td>
+              <td data-label="Author" class="admin-post-mobile-hidden">{{ item.author|default:"-" }}</td>
+              <td data-label="Comments" class="admin-post-mobile-hidden">{{ item.comment_count|default:0 }}</td>
+              <td data-label="Published" class="admin-post-status-cell">
+                <form method="post" action="{% url 'admin_app:post-toggle-status' item.document_id %}" class="d-inline-flex align-items-center">
+                  {% csrf_token %}
+                  <button type="submit" class="status-toggle {% if item.is_published %}is-on{% endif %}" title="{% if item.is_published %}Published{% else %}Draft{% endif %}" aria-label="{% if item.is_published %}Published{% else %}Draft{% endif %}">
+                    <span class="status-toggle-knob"></span>
+                  </button>
+                </form>
+              </td>
+              <td data-label="Updated" class="admin-post-mobile-hidden">{{ item.updated_at|date:"Y-m-d H:i" }}</td>
+            {% elif active_nav == "pages" %}
+              <td data-label="Title" class="admin-table-primary-cell">{{ item.title }}</td>
+              <td data-label="Type"><span class="badge text-bg-light">{{ item.get_type_display }}</span></td>
+              <td data-label="Doc ID"><code>{{ item.document_id }}</code></td>
+              <td data-label="Published">
+                <form method="post" action="{% url 'admin_app:page-toggle-status' item.document_id %}" class="d-inline-flex align-items-center">
+                  {% csrf_token %}
+                  <button type="submit" class="status-toggle {% if item.is_published %}is-on{% endif %}" title="{% if item.is_published %}Published{% else %}Draft{% endif %}" aria-label="{% if item.is_published %}Published{% else %}Draft{% endif %}">
+                    <span class="status-toggle-knob"></span>
+                  </button>
+                </form>
+              </td>
+              <td data-label="Updated">{{ item.updated_at|date:"Y-m-d H:i" }}</td>
+            {% elif active_nav == "categories" %}
+              <td data-label="Name" class="admin-table-primary-cell">{{ item.name }}</td>
+              <td data-label="Parent">{{ item.parent.name|default:"-" }}</td>
+              <td data-label="Doc ID"><code>{{ item.document_id }}</code></td>
+              <td data-label="Order">{{ item.sort_order }}</td>
+              <td data-label="Published">
+                <form method="post" action="{% url 'admin_app:category-toggle-status' item.document_id %}" class="d-inline-flex align-items-center">
+                  {% csrf_token %}
+                  <button type="submit" class="status-toggle {% if item.status == 'published' %}is-on{% endif %}" title="{{ item.status }}" aria-label="{{ item.status }}">
+                    <span class="status-toggle-knob"></span>
+                  </button>
+                </form>
+              </td>
+            {% elif active_nav == "tags" %}
+              <td data-label="Name" class="admin-table-primary-cell">{{ item.name }}</td>
+              <td data-label="Doc ID"><code>{{ item.document_id }}</code></td>
+              <td data-label="Aliases">{{ item.aliases|join:", "|default:"-" }}</td>
+            {% elif active_nav == "comments" %}
+              <td data-label="Author" class="admin-table-primary-cell"><div class="fw-semibold">{{ item.author_name }}</div><div class="small text-secondary">{{ item.author_email|default:"-" }}</div></td>
+              <td data-label="Target">{{ item.target_type }} / <code>{{ item.target_document_id }}</code></td>
+              <td data-label="Published">
+                <form method="post" action="{% url 'admin_app:comment-toggle-status' item.document_id %}" class="d-inline-flex align-items-center">
+                  {% csrf_token %}
+                  <button type="submit" class="status-toggle {% if item.status == 'published' %}is-on{% endif %}" title="{{ item.status }}" aria-label="{{ item.status }}">
+                    <span class="status-toggle-knob"></span>
+                  </button>
+                </form>
+              </td>
+              <td data-label="Created">{{ item.created_at|date:"Y-m-d H:i" }}</td>
+            {% elif active_nav == "reports" %}
+              <td data-label="Doc ID" class="admin-table-primary-cell"><code>{{ item.document_id }}</code></td>
+              <td data-label="Target">{{ item.target_type }} / <code>{{ item.target_document_id }}</code></td>
+              <td data-label="Reporter">{{ item.reporter.email|default:"-" }}</td>
+              <td data-label="Status">
+                {% if item.status == "pending" %}
+                  <span class="badge text-bg-warning">Pending</span>
+                {% elif item.status == "reviewed" %}
+                  <span class="badge text-bg-success">Approved</span>
+                {% else %}
+                  <span class="badge text-bg-secondary">Rejected</span>
+                {% endif %}
+              </td>
+              <td data-label="Created">{{ item.created_at|date:"Y-m-d H:i" }}</td>
+            {% elif active_nav == "moderators" %}
+              <td data-label="Moderator" class="admin-table-primary-cell">{{ item.moderator.email }}</td>
+              <td data-label="Role"><span class="badge text-bg-info">{{ item.moderator.role }}</span></td>
+              <td data-label="Category">{{ item.category.name }}</td>
+              <td data-label="Created">{{ item.created_at|date:"Y-m-d H:i" }}</td>
+            {% elif active_nav == "users" %}
+              {% if current_user_tab == "seed" %}
+                <td data-label="Select"><input type="checkbox" class="form-check-input" name="selected_ids" value="{{ item.id }}" form="seed-delete-form" data-seed-user-checkbox></td>
+              {% endif %}
+              <td data-label="Email" class="admin-table-primary-cell">{{ item.email }}</td>
+              <td data-label="Username">{{ item.username }}</td>
+              {% if current_user_tab == "user" %}
+                <td data-label="Role"><span class="badge text-bg-light">{{ item.role }}</span></td>
+                <td data-label="Staff">{% if item.is_staff %}Yes{% else %}No{% endif %}</td>
+              {% endif %}
+              <td data-label="Joined">{{ item.date_joined|date:"Y-m-d" }}</td>
+            {% endif %}
+
+            {% if active_nav != "users" %}
+              <td data-label="Actions" class="admin-table-actions-cell text-end">
+                {% if active_nav == "moderators" %}
+                  <div class="d-inline-flex gap-1">
+                    <a href="{% url detail_url_name item.pk %}" class="btn btn-sm btn-outline-secondary icon-action-btn" title="Edit">
+                      <i class="bi bi-pencil-square"></i>
+                    </a>
+                    <a href="{% url delete_url_name item.pk %}" class="btn btn-sm btn-outline-danger icon-action-btn" title="Delete">
+                      <i class="bi bi-trash"></i>
+                    </a>
+                  </div>
+                {% else %}
+                  <div class="d-inline-flex gap-1">
+                    {% if view_url_name %}
+                      <a href="{% url view_url_name item.document_id %}" class="btn btn-sm btn-outline-primary icon-action-btn" title="View">
+                        <i class="bi bi-eye"></i>
+                      </a>
+                    {% endif %}
+                    {% if active_nav == "categories" %}
+                      <button
+                        type="button"
+                        class="btn btn-sm btn-outline-primary icon-action-btn"
+                        title="Assign moderator"
+                        data-bs-toggle="modal"
+                        data-bs-target="#assignModeratorModal"
+                        data-assign-moderator="true"
+                        data-category-name="{{ item.name }}"
+                        data-action-url="{% url 'admin_app:category-assign-moderator' item.document_id %}"
+                      >
+                        <i class="bi bi-person-plus"></i>
+                      </button>
+                    {% endif %}
+                    <a href="{% url detail_url_name item.document_id %}" class="btn btn-sm btn-outline-secondary icon-action-btn" title="Edit">
+                      <i class="bi bi-pencil-square"></i>
+                    </a>
+                    <a href="{% url delete_url_name item.document_id %}" class="btn btn-sm btn-outline-danger icon-action-btn" title="Delete">
+                      <i class="bi bi-trash"></i>
+                    </a>
+                  </div>
+                {% endif %}
+              </td>
+            {% endif %}
+          </tr>
+        {% empty %}
+          <tr><td colspan="{{ columns|length }}" class="text-center text-secondary py-5">No {{ page_title|lower }} found.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% if is_paginated %}
+  <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mt-3">
+    <div class="small text-secondary">
+      Page {{ page_obj.number }} of {{ paginator.num_pages }} · {{ paginator.count }} total
+    </div>
+    <nav aria-label="{{ page_title }} pagination">
+      <ul class="pagination pagination-sm mb-0">
+        <li class="page-item {% if not page_obj.has_previous %}disabled{% endif %}">
+          <a class="page-link" href="?{% if pagination_query %}{{ pagination_query }}&{% endif %}page=1" aria-label="First">First</a>
+        </li>
+        <li class="page-item {% if not page_obj.has_previous %}disabled{% endif %}">
+          <a class="page-link" href="?{% if pagination_query %}{{ pagination_query }}&{% endif %}page={% if page_obj.has_previous %}{{ page_obj.previous_page_number }}{% else %}1{% endif %}" aria-label="Previous">Prev</a>
+        </li>
+        {% for page_number in pagination_pages %}
+          <li class="page-item {% if page_number == page_obj.number %}active{% endif %}">
+            <a class="page-link" href="?{% if pagination_query %}{{ pagination_query }}&{% endif %}page={{ page_number }}">{{ page_number }}</a>
+          </li>
+        {% endfor %}
+        <li class="page-item {% if not page_obj.has_next %}disabled{% endif %}">
+          <a class="page-link" href="?{% if pagination_query %}{{ pagination_query }}&{% endif %}page={% if page_obj.has_next %}{{ page_obj.next_page_number }}{% else %}{{ paginator.num_pages }}{% endif %}" aria-label="Next">Next</a>
+        </li>
+        <li class="page-item {% if not page_obj.has_next %}disabled{% endif %}">
+          <a class="page-link" href="?{% if pagination_query %}{{ pagination_query }}&{% endif %}page={{ paginator.num_pages }}" aria-label="Last">Last</a>
+        </li>
+      </ul>
+    </nav>
+  </div>
+{% endif %}
+
+{% if active_nav == "categories" %}
+  <div class="modal fade" id="assignModeratorModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content border-0 shadow">
+        <div class="modal-header">
+          <div>
+            <h5 class="modal-title mb-1">Assign Moderator</h5>
+            <div class="small text-secondary">Assign a moderator to <span class="fw-semibold" data-category-label>this category</span>.</div>
+          </div>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <form method="post">
+          <div class="modal-body">
+            {% csrf_token %}
+            <label for="assign-moderator-select" class="form-label fw-semibold">Moderator</label>
+            <select id="assign-moderator-select" name="moderator_id" class="form-select" required>
+              <option value="">Select moderator</option>
+              {% for moderator in moderator_options %}
+                <option value="{{ moderator.id }}">{{ moderator.email }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+            <button type="submit" class="btn btn-primary btn-sm">Assign</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+{% endif %}
+{% endblock %}

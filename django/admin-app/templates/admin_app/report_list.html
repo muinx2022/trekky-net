@@ -1,0 +1,134 @@
+{% extends "admin_app/base.html" %}
+
+{% block title %}Reports | Trekky Admin{% endblock %}
+{% block page_title %}Reports{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+  <p class="text-secondary mb-0">Reports grouped by target. Approve valid reports or reject invalid ones.</p>
+</div>
+
+<div class="card shadow-sm border-0 mb-4">
+  <div class="card-body">
+    <form method="get" class="row g-2 align-items-center">
+      <div class="col-12 col-md-5">
+        <input type="search" name="q" value="{{ query }}" class="form-control" placeholder="Search by target ID, reporter, reason…">
+      </div>
+      <div class="col-auto">
+        <select name="status" class="form-select">
+          <option value="">All statuses</option>
+          {% for value, label in status_choices %}
+            <option value="{{ value }}" {% if value == status_filter %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-auto">
+        <button type="submit" class="btn btn-outline-secondary">Filter</button>
+      </div>
+      {% if query or status_filter %}
+      <div class="col-auto">
+        <a href="{% url 'admin_app:report-list' %}" class="btn btn-link text-secondary p-0">Clear</a>
+      </div>
+      {% endif %}
+    </form>
+  </div>
+</div>
+
+{% if report_groups %}
+  {% for group in report_groups %}
+  <div class="card shadow-sm border-0 mb-3">
+    <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2 py-3"
+      role="button" data-bs-toggle="collapse" data-bs-target="#group-{{ forloop.counter }}"
+      aria-expanded="false" aria-controls="group-{{ forloop.counter }}" style="cursor:pointer">
+      <div class="d-flex align-items-center gap-2">
+        <i class="bi bi-chevron-right small text-secondary report-chevron"></i>
+        <span class="badge text-bg-secondary text-uppercase" style="font-size:.7rem;letter-spacing:.04em">{{ group.target_type }}</span>
+        <span class="fw-semibold">{{ group.target_title|default:group.target_document_id }}</span>
+        <span class="badge text-bg-{{ group.target_state.variant }}">{{ group.target_state.label }}</span>
+        <span class="badge {% if group.pending_count > 0 %}text-bg-danger{% else %}text-bg-light{% endif %}">
+          {{ group.reports|length }} report{{ group.reports|length|pluralize }}{% if group.pending_count > 0 %} · {{ group.pending_count }} pending{% endif %}
+        </span>
+      </div>
+    </div>
+    <div class="collapse" id="group-{{ forloop.counter }}">
+    <div class="table-responsive">
+      <table class="table admin-table align-middle mb-0">
+        <thead>
+          <tr>
+            <th>Reporter</th>
+            <th>Reason</th>
+            <th>Status</th>
+            <th>Date</th>
+            <th class="text-end">Moderation</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for report in group.reports %}
+          <tr>
+            <td>
+              <div class="small">{{ report.reporter.email|default:"Anonymous" }}</div>
+            </td>
+            <td>
+              <div class="small text-secondary" style="max-width:24rem">{{ report.reason|default:"-" }}</div>
+            </td>
+            <td>
+              {% if report.status == "pending" %}
+                <span class="badge text-bg-warning">Pending</span>
+              {% elif report.status == "reviewed" %}
+                <span class="badge text-bg-success">Approved</span>
+              {% else %}
+                <span class="badge text-bg-secondary">Rejected</span>
+              {% endif %}
+            </td>
+            <td class="small text-secondary">{{ report.created_at|date:"Y-m-d H:i" }}</td>
+            <td class="text-end">
+              <div class="d-inline-flex gap-1">
+                {% if group.pending_count > 0 and report.status == "pending" %}
+                <form method="post" action="{% url 'admin_app:report-approve' report.document_id %}" class="d-inline">
+                  {% csrf_token %}
+                  <button type="submit" class="btn btn-sm btn-success">Approve</button>
+                </form>
+                <form method="post" action="{% url 'admin_app:report-reject' report.document_id %}" class="d-inline">
+                  {% csrf_token %}
+                  <button type="submit" class="btn btn-sm btn-outline-secondary">Reject</button>
+                </form>
+                {% endif %}
+                <a href="{% url 'admin_app:report-update' report.document_id %}" class="btn btn-sm btn-outline-secondary icon-action-btn" title="Edit">
+                  <i class="bi bi-pencil-square"></i>
+                </a>
+                <a href="{% url 'admin_app:report-delete' report.document_id %}" class="btn btn-sm btn-outline-danger icon-action-btn" title="Delete">
+                  <i class="bi bi-trash"></i>
+                </a>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    </div>
+  </div>
+  {% endfor %}
+{% else %}
+  <div class="card shadow-sm border-0">
+    <div class="card-body text-center text-secondary py-5">No reports found.</div>
+  </div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  document.querySelectorAll('[data-bs-toggle="collapse"]').forEach(function (header) {
+    const target = document.querySelector(header.getAttribute('data-bs-target'));
+    const chevron = header.querySelector('.report-chevron');
+    if (!target || !chevron) return;
+    chevron.style.transition = 'transform .2s ease';
+    target.addEventListener('show.bs.collapse', function () {
+      chevron.style.transform = 'rotate(90deg)';
+    });
+    target.addEventListener('hide.bs.collapse', function () {
+      chevron.style.transform = 'rotate(0deg)';
+    });
+  });
+</script>
+{% endblock %}
