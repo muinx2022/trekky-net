@@ -69,6 +69,7 @@ Production deployment files live in:
 - `web/Dockerfile`
 - `deploy/vps/docker-compose.yml`
 - `deploy/vps/deploy.sh`
+- `deploy/vps/CUTOVER.md`
 - `.github/workflows/deploy.yml`
 
 GitHub Actions is set up to:
@@ -98,6 +99,8 @@ Optional GitHub variables:
 - `NEXT_PUBLIC_API_URL`
 - `NEXT_PUBLIC_SITE_URL`
 - `NEXT_PUBLIC_BASE_URL`
+
+When you are ready to switch `trekky.net` traffic from the old Strapi stack to the new Django stack, follow `deploy/vps/CUTOVER.md`.
 
 ## Strapi Sync
 

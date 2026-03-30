@@ -61,8 +61,10 @@ services:
       - django_media:/app/media
       - django_static:/app/staticfiles
     networks:
-      - default
-      - shared-network
+      default: {}
+      shared-network:
+        aliases:
+          - trekky-net-api
 
   worker:
     image: ${API_IMAGE}
@@ -130,8 +132,10 @@ services:
     ports:
       - "3000:3000"
     networks:
-      - default
-      - shared-network
+      default: {}
+      shared-network:
+        aliases:
+          - trekky-net-web
 
 volumes:
   postgres_data:
