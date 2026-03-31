@@ -41,9 +41,12 @@ from .views import (
     TagDeleteView,
     TagListView,
     TagUpdateView,
+    UserCreateView,
+    UserDeleteView,
     UserListView,
     UserSeedCreateView,
     UserSeedDeleteView,
+    UserUpdateView,
 )
 
 app_name = "admin_app"
@@ -89,6 +92,9 @@ urlpatterns = [
     path("reports/<str:document_id>/approve/", ReportApproveView.as_view(), name="report-approve"),
     path("reports/<str:document_id>/reject/", ReportRejectView.as_view(), name="report-reject"),
     path("users/", UserListView.as_view(), name="user-list"),
+    path("users/create/", UserCreateView.as_view(), name="user-create"),
+    path("users/<str:document_id>/edit/", UserUpdateView.as_view(), name="user-update"),
+    path("users/<str:document_id>/delete/", UserDeleteView.as_view(), name="user-delete"),
     path("users/seed/", UserSeedCreateView.as_view(), name="user-seed"),
     path("users/seed/delete/", UserSeedDeleteView.as_view(), name="user-seed-delete"),
     path("settings/", SettingsView.as_view(), name="settings"),

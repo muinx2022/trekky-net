@@ -13,7 +13,7 @@ from django.views.generic import CreateView, DeleteView, DetailView, ListView, T
 import json
 import re
 
-from .forms import AISettingsForm, CategoryForm, CommentForm, GA4SettingsForm, GoogleOAuthSettingsForm, MediaStorageSettingsForm, ModeratorAssignmentForm, PageForm, PostForm, ReportForm, TagForm
+from .forms import AISettingsForm, CategoryForm, CommentForm, GA4SettingsForm, GoogleOAuthSettingsForm, MediaStorageSettingsForm, ModeratorAssignmentForm, PageForm, PostForm, ReportForm, TagForm, UserForm
 from trekky_apps.accounts.seed_users import DEFAULT_SEED_PASSWORD, build_seed_user_draft
 from trekky_apps.content.models import Comment, CommentStatus, Page, Post
 from trekky_apps.content.post_media_service import PostMediaSyncError, delete_post_with_media
@@ -875,6 +875,10 @@ class UserListView(AdminAppListView):
     columns = ["Email", "Username", "Role", "Staff", "Joined"]
     active_nav = "users"
     search_fields = ("email", "username")
+    create_url_name = "admin_app:user-create"
+    create_label = "New User"
+    detail_url_name = "admin_app:user-update"
+    delete_url_name = "admin_app:user-delete"
 
     def get_user_tab(self):
         tab = str(self.request.GET.get("tab") or "user").strip().lower()
@@ -895,7 +899,7 @@ class UserListView(AdminAppListView):
         context["generated_seed_user_count"] = generated_seed_users.count()
         context["seed_default_password"] = DEFAULT_SEED_PASSWORD
         context["page_subtitle"] = "System users and internal accounts." if current_tab == "user" else "Generated seeded users for demo, AI, and test flows."
-        context["columns"] = ["Email", "Username", "Role", "Staff", "Joined"] if current_tab == "user" else ["Select", "Email", "Username", "Joined"]
+        context["columns"] = ["Email", "Username", "Role", "Staff", "Joined", "Actions"] if current_tab == "user" else ["Select", "Email", "Username", "Joined"]
         return context
 
 
@@ -952,6 +956,39 @@ class UserSeedDeleteView(AdminAppAccessMixin, View):
         queryset.delete()
         messages.success(request, f"Deleted {deleted_count} generated seeded users.")
         return redirect(f"{reverse('admin_app:user-list')}?tab=seed")
+
+
+class UserCreateView(AdminAppFormView, CreateView):
+    model = User
+    form_class = UserForm
+    success_url = reverse_lazy("admin_app:user-list")
+    page_title = "Create User"
+    page_subtitle = "Add a new user account."
+    success_message = "User created successfully."
+    active_nav = "users"
+
+
+class UserUpdateView(AdminAppFormView, UpdateView):
+    model = User
+    form_class = UserForm
+    slug_field = "document_id"
+    slug_url_kwarg = "document_id"
+    success_url = reverse_lazy("admin_app:user-list")
+    page_title = "Edit User"
+    page_subtitle = "Update user account details."
+    success_message = "User updated successfully."
+    active_nav = "users"
+
+
+class UserDeleteView(AdminAppDeleteView):
+    model = User
+    slug_field = "document_id"
+    slug_url_kwarg = "document_id"
+    success_url = reverse_lazy("admin_app:user-list")
+    page_title = "Delete User"
+    page_subtitle = "Permanently delete this user account."
+    success_message = "User deleted successfully."
+    active_nav = "users"
 
 
 class SettingsView(AdminAppAccessMixin, TemplateView):

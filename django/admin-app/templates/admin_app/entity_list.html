@@ -243,7 +243,7 @@
               <td data-label="Joined">{{ item.date_joined|date:"Y-m-d" }}</td>
             {% endif %}
 
-            {% if active_nav != "users" %}
+            {% if active_nav != "users" or current_user_tab == "user" %}
               <td data-label="Actions" class="admin-table-actions-cell text-end">
                 {% if active_nav == "moderators" %}
                   <div class="d-inline-flex gap-1">
