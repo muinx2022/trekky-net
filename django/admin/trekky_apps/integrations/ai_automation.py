@@ -196,10 +196,16 @@ def normalize_content_payload(payload: dict, scenario: str, preferred_media_mode
     media_mode = str(payload.get("media_mode") or preferred_media_mode or MediaMode.BODY).strip().lower()
     if media_mode not in {MediaMode.BODY, MediaMode.GALLERY}:
         media_mode = MediaMode.BODY
+    normalized_title = str(payload.get("title") or "").strip()
+    normalized_body = normalize_body_text(str(payload.get("body_text") or payload.get("content") or "").strip()[:2200])
+    if not normalized_title:
+        raise ValueError("AI content payload missing title")
+    if not normalized_body:
+        raise ValueError("AI content payload missing body_text")
     return {
-        "title": str(payload.get("title") or f"AI Post {timezone.now():%Y%m%d%H%M%S}").strip(),
+        "title": normalized_title,
         "excerpt": str(payload.get("excerpt") or "").strip(),
-        "body_text": normalize_body_text(str(payload.get("body_text") or payload.get("content") or "").strip()[:2200]),
+        "body_text": normalized_body,
         "related_tags": related_tags,
         "image_search_queries": image_search_queries,
         "media_mode": media_mode,

@@ -5,7 +5,7 @@ from django.test import TestCase
 
 from trekky_apps.content.models import Comment, Post
 from trekky_apps.engagement.models import Interaction
-from trekky_apps.integrations.ai_automation import run_comment_automation, run_content_automation
+from trekky_apps.integrations.ai_automation import normalize_content_payload, run_comment_automation, run_content_automation
 from trekky_apps.integrations.models import AIAutomationSettings
 
 
@@ -149,3 +149,45 @@ class AIAutomationTests(TestCase):
             content="Fresh comment",
         )
         self.assertTrue(created_comment.author.is_seeded)
+
+    def test_normalize_content_payload_requires_title_and_body(self):
+        with self.assertRaisesMessage(ValueError, "AI content payload missing title"):
+            normalize_content_payload(
+                {
+                    "excerpt": "Excerpt",
+                    "body_text": "Body text",
+                    "related_tags": ["travel"],
+                    "image_search_queries": ["travel phone photo"],
+                    "media_mode": "body",
+                },
+                "Scenario",
+                "body",
+            )
+
+        with self.assertRaisesMessage(ValueError, "AI content payload missing body_text"):
+            normalize_content_payload(
+                {
+                    "title": "Valid title",
+                    "excerpt": "Excerpt",
+                    "body_text": "",
+                    "related_tags": ["travel"],
+                    "image_search_queries": ["travel phone photo"],
+                    "media_mode": "body",
+                },
+                "Scenario",
+                "body",
+            )
+
+    @patch("trekky_apps.integrations.ai_automation.generate_content_payload")
+    @patch("trekky_apps.integrations.ai_automation.has_image_provider_credentials", return_value=False)
+    def test_content_automation_skips_invalid_ai_payload_instead_of_creating_fallback_post(self, _mock_images, mock_generate_content_payload):
+        mock_generate_content_payload.side_effect = ValueError("AI content payload missing title")
+        self.settings.content_posts_per_run = 1
+        self.settings.save(update_fields=["content_posts_per_run", "updated_at"])
+
+        result = run_content_automation()
+
+        self.assertEqual(result["created_posts"], 0)
+        self.assertEqual(result["skipped"], 1)
+        self.assertFalse(Post.objects.exists())
+        self.assertIn("AI content payload missing title", " | ".join(result["errors"]))
