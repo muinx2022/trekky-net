@@ -2,7 +2,8 @@ from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.urls import reverse
 
-from trekky_apps.content.models import Comment, CommentStatus, Post
+from trekky_apps.content.media_services import create_media_asset
+from trekky_apps.content.models import Comment, CommentStatus, Post, PostAsset
 from trekky_apps.engagement.models import Report, ReportStatus
 from trekky_apps.moderation.models import ModerationAction
 
@@ -158,3 +159,40 @@ class ReportModerationFlowTests(TestCase):
         self.assertFalse(comment.is_published)
         self.assertEqual(report.status, ReportStatus.REVIEWED)
         self.assertContains(response, "Approved 1 report(s) and hid the comment.")
+
+
+class PostDeleteFlowTests(TestCase):
+    PNG_BYTES = (
+        b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01"
+        b"\x08\x02\x00\x00\x00\x90wS\xde\x00\x00\x00\x0cIDAT\x08\x99c\xf8\x0f"
+        b"\x00\x01\x01\x01\x00\x18\xdd\x8d\xb1\x00\x00\x00\x00IEND\xaeB`\x82"
+    )
+
+    def setUp(self):
+        self.admin_user = User.objects.create_user(
+            email="admin-delete@example.com",
+            username="admin-delete",
+            password="Secret123!",
+            role="admin",
+        )
+        self.client.force_login(self.admin_user)
+
+    def test_admin_post_delete_removes_exclusive_media(self):
+        asset = create_media_asset(
+            filename="exclusive.png",
+            content=self.PNG_BYTES,
+            mime_type="image/png",
+            uploader=self.admin_user,
+        )
+        post = Post.objects.create(
+            title="Delete me",
+            content=f'<p><img src="{asset.file.url}" alt="Exclusive image" /></p>',
+            author=self.admin_user,
+        )
+        PostAsset.objects.create(post=post, media_asset=asset, file=asset.file.name, alt_text=asset.alt_text)
+
+        response = self.client.post(reverse("admin_app:post-delete", args=[post.document_id]), follow=True)
+
+        self.assertRedirects(response, reverse("admin_app:post-list"))
+        self.assertFalse(Post.objects.filter(pk=post.pk).exists())
+        self.assertFalse(type(asset).objects.filter(pk=asset.pk).exists())

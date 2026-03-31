@@ -3,12 +3,14 @@ import tempfile
 from dataclasses import dataclass
 from io import BytesIO
 from pathlib import Path
+import re
 
 from django.core.files.base import ContentFile
 from django.utils.html import escape
 from PIL import Image, UnidentifiedImageError
 
 from .models import MediaAsset, Post, PostAsset
+from .post_media_service import compute_checksum_from_bytes
 from trekky_apps.integrations.models import MediaProvider, MediaStorageSettings
 
 
@@ -45,16 +47,26 @@ def create_media_asset(
         raise ValueError("Media content is empty")
     if len(content) > MAX_IMAGE_SIZE_BYTES and mime_type.startswith("image/"):
         raise ValueError("Media exceeds the configured size limit")
+    checksum = compute_checksum_from_bytes(content)
+    existing = MediaAsset.objects.filter(content_checksum=checksum).first()
+    if existing:
+        if alt_text and not existing.alt_text:
+            existing.alt_text = alt_text
+        if source and existing.source != source:
+            existing.source = source
+        existing.save(update_fields=["alt_text", "source", "updated_at"])
+        return existing
 
     media_settings = MediaStorageSettings.objects.order_by("-updated_at").first()
     if media_settings and media_settings.provider == MediaProvider.CLOUDINARY:
         from .cloudinary_service import upload_asset
 
-        payload = upload_asset(ContentFile(content, name=Path(filename).name), uploader=uploader)
+        payload = upload_asset(ContentFile(content, name=Path(filename).name), folder="trekky-net", uploader=uploader)
         asset = MediaAsset.objects.get(pk=payload["id"])
         asset.alt_text = alt_text or asset.alt_text
         asset.source = source or asset.source
-        asset.save(update_fields=["alt_text", "source", "updated_at"])
+        asset.content_checksum = checksum
+        asset.save(update_fields=["alt_text", "source", "content_checksum", "updated_at"])
         return asset
 
     width, height = _image_dimensions(content) if mime_type.startswith("image/") else (None, None)
@@ -67,6 +79,7 @@ def create_media_asset(
         width=width,
         height=height,
         source=source,
+        content_checksum=checksum,
     )
     field = asset._meta.get_field("file")
     generated_name = field.generate_filename(asset, Path(filename).name)
@@ -116,7 +129,11 @@ def attach_media_assets_to_post(post: Post, asset_ids: list[int]) -> list[PostAs
 
 
 def build_body_html(body_text: str, assets: list[MediaAsset]) -> str:
-    intro = f"<p>{escape(body_text)}</p>"
+    raw = str(body_text or "").strip()
+    paragraphs = [item.strip() for item in re.split(r"(?:\r?\n){2,}", raw) if item.strip()]
+    if not paragraphs and raw:
+        paragraphs = [raw]
+    intro = "".join(f"<p>{escape(item)}</p>" for item in paragraphs)
     gallery = "".join(
         f'<p><img src="{escape(asset.cloudinary_secure_url or asset.file.url)}" alt="{escape(asset.alt_text or asset.original_filename or "Post image")}" /></p>'
         for asset in assets

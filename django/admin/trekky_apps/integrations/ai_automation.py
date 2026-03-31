@@ -4,7 +4,9 @@ import random
 import re
 from dataclasses import dataclass
 from datetime import datetime
+from hashlib import sha256
 from typing import Literal
+from urllib.parse import urlsplit, urlunsplit
 from zoneinfo import ZoneInfo
 
 import requests
@@ -13,6 +15,7 @@ from croniter import croniter
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
 from django.db import transaction
+from django.db.models import Count
 from django.utils import timezone
 from openai import OpenAI
 
@@ -42,13 +45,22 @@ DEFAULT_SCENARIOS = "\n".join(
     ]
 )
 DEFAULT_CONTENT_PROMPT = (
-    "Hay tao bai viet bang tieng Viet, giong nguoi that dang ke lai trai nghiem du lich doi thuong. "
+    "Ban la mot travel writer nguoi Viet, viet nhu nguoi that da trai qua chuyen di. "
+    "Dua tren Category va Scenario, hay tu suy luan intent phu hop roi viet bai bang tieng Viet tu nhien, moc, giong user-generated content. "
+    "Khong viet kieu quang cao, khong giong AI, khong qua hoa my. "
     "Tra ve JSON hop le voi cac key: title, excerpt, body_text, related_tags, image_search_queries, media_mode. "
-    "related_tags la mang 3-6 tag ngan. image_search_queries la mang 5-8 query tieng Anh de tim anh doi thuong, candid, real life. "
-    "media_mode chi nhan body hoac gallery."
+    "body_text nen gon, de doc, khoang 160-280 tu, uu tien 2 hoac 3 paragraph ro rang, moi paragraph 2-4 cau, khong viet qua dai. "
+    "related_tags la mang 2-4 tag tieng Viet, uu tien tag pho bien, ngan, co the tai su dung cho nhieu bai, khong qua niche. "
+    "image_search_queries la mang 5-8 query tieng Anh, uu tien phone photo, smartphone photo, candid, casual travel snapshot, local life, real-life travel moment; tranh anh professional, DSLR, editorial, luxury, studio."
 )
-DEFAULT_COMMENT_PROMPT = "Hay viet 1 comment ngan, tu nhien, giong nguoi dung Viet Nam that."
-DEFAULT_REPLY_PROMPT = "Hay viet 1 comment reply ngan, tu nhien, lien quan truc tiep toi comment dang duoc reply."
+DEFAULT_COMMENT_PROMPT = (
+    "Hay viet 1 comment ngan bang tieng Viet, giong nguoi dung Viet Nam that tren app chia se trai nghiem du lich. "
+    "Tu nhien, doi thuong, 1-2 cau ngan, khong emoji, khong hashtag, khong giong AI hay PR."
+)
+DEFAULT_REPLY_PROMPT = (
+    "Hay viet 1 reply ngan bang tieng Viet, lien quan truc tiep toi comment dang duoc reply, giong hoi thoai that giua nguoi dung. "
+    "1-2 cau rat ngan, tu nhien, khong emoji, khong hashtag, khong giong AI."
+)
 
 
 @dataclass
@@ -94,6 +106,14 @@ def get_ai_settings() -> AIAutomationSettings:
 
 def parse_lines(value: str) -> list[str]:
     return [line.strip() for line in str(value or "").splitlines() if line.strip()]
+
+
+def normalize_remote_url(value: str) -> str:
+    raw = str(value or "").strip()
+    if not raw:
+        return ""
+    parts = urlsplit(raw)
+    return urlunsplit((parts.scheme, parts.netloc, parts.path, "", ""))
 
 
 def cron_due(expression: str, now: datetime, tz_name: str, last_run_at: datetime | None) -> bool:
@@ -180,11 +200,49 @@ def normalize_content_payload(payload: dict, scenario: str, preferred_media_mode
     return {
         "title": str(payload.get("title") or f"AI Post {timezone.now():%Y%m%d%H%M%S}").strip(),
         "excerpt": str(payload.get("excerpt") or "").strip(),
-        "body_text": str(payload.get("body_text") or payload.get("content") or "").strip(),
+        "body_text": normalize_body_text(str(payload.get("body_text") or payload.get("content") or "").strip()[:2200]),
         "related_tags": related_tags,
         "image_search_queries": image_search_queries,
         "media_mode": media_mode,
     }
+
+
+def normalize_body_text(body_text: str) -> str:
+    original = str(body_text or "").strip()
+    if not original:
+        return ""
+
+    explicit_paragraphs = [item.strip() for item in re.split(r"(?:\r?\n){2,}", original) if item.strip()]
+    if 2 <= len(explicit_paragraphs) <= 3:
+        return "\n\n".join(explicit_paragraphs)
+    if len(explicit_paragraphs) > 3:
+        first = explicit_paragraphs[0]
+        second = explicit_paragraphs[1]
+        third = " ".join(explicit_paragraphs[2:])
+        return "\n\n".join(item for item in (first, second, third) if item).strip()
+
+    compact = re.sub(r"\s+", " ", original)
+    sentences = [item.strip() for item in re.split(r"(?<=[.!?])\s+", compact) if item.strip()]
+    if len(sentences) <= 3:
+        midpoint = max(1, len(compact) // 2)
+        split_at = compact.find(" ", midpoint)
+        if split_at == -1:
+            return compact
+        return f"{compact[:split_at].strip()}\n\n{compact[split_at + 1:].strip()}".strip()
+
+    group_count = 3 if len(sentences) >= 6 else 2
+    group_size = max(1, len(sentences) // group_count)
+    paragraphs: list[str] = []
+    start = 0
+    for index in range(group_count):
+        end = start + group_size
+        if index == group_count - 1:
+            end = len(sentences)
+        paragraph = " ".join(sentences[start:end]).strip()
+        if paragraph:
+            paragraphs.append(paragraph)
+        start = end
+    return "\n\n".join(paragraphs[:3]).strip()
 
 
 def generate_content_payload(settings: AIAutomationSettings, category: Category, scenario: str) -> dict:
@@ -251,9 +309,12 @@ def with_job_lock(job: str, callback):
 def resolve_image_provider(settings: AIAutomationSettings, provider: str) -> str:
     normalized = str(provider or ImageProvider.AUTO).lower()
     if normalized == ImageProvider.AUTO:
-        if settings.google_image_search_enabled and settings.google_image_search_api_key and settings.google_image_search_engine_id:
+        google_key = settings.google_image_search_api_key or os.getenv("GOOGLE_IMAGE_SEARCH_API_KEY", "")
+        google_engine = settings.google_image_search_engine_id or os.getenv("GOOGLE_IMAGE_SEARCH_ENGINE_ID", "")
+        pexels_key = settings.pexels_api_key or os.getenv("PEXELS_API_KEY", "")
+        if settings.google_image_search_enabled and google_key and google_engine:
             return ImageProvider.GOOGLE
-        if settings.pexels_enabled and settings.pexels_api_key:
+        if settings.pexels_enabled and pexels_key:
             return ImageProvider.PEXELS
     return normalized
 
@@ -329,12 +390,24 @@ def search_pexels_images(settings: AIAutomationSettings, query: str, count: int)
 
 
 def search_remote_images(settings: AIAutomationSettings, query: str, count: int, provider: str) -> list[RemoteImageCandidate]:
+    requested = str(provider or ImageProvider.AUTO).lower()
     resolved = resolve_image_provider(settings, provider)
     if resolved == ImageProvider.GOOGLE:
+        if requested == ImageProvider.AUTO:
+            try:
+                google = search_google_images(settings, query, count)
+                if google:
+                    return google
+            except Exception:
+                pass
+            return search_pexels_images(settings, query, count)
         return search_google_images(settings, query, count)
     if resolved == ImageProvider.PEXELS:
         return search_pexels_images(settings, query, count)
-    google = search_google_images(settings, query, count)
+    try:
+        google = search_google_images(settings, query, count)
+    except Exception:
+        google = []
     return google if google else search_pexels_images(settings, query, count)
 
 
@@ -388,6 +461,18 @@ def upload_downloaded_images(downloads: list[DownloadedMedia], author) -> list:
     return uploaded
 
 
+def dedupe_downloads(downloads: list[DownloadedMedia]) -> list[DownloadedMedia]:
+    unique_downloads: list[DownloadedMedia] = []
+    seen_checksums: set[str] = set()
+    for download in downloads:
+        checksum = sha256(download.content).hexdigest()
+        if checksum in seen_checksums:
+            continue
+        seen_checksums.add(checksum)
+        unique_downloads.append(download)
+    return unique_downloads
+
+
 @transaction.atomic
 def run_content_automation() -> dict:
     def _run():
@@ -401,6 +486,7 @@ def run_content_automation() -> dict:
             "embedded_body_images": 0,
             "gallery_images": 0,
             "skipped": 0,
+            "image_provider": resolve_image_provider(settings, settings.content_image_provider),
             "errors": [],
         }
         users = choose_seeded_users()
@@ -420,6 +506,7 @@ def run_content_automation() -> dict:
                 if has_image_provider_credentials(settings, settings.content_image_provider):
                     desired_count = random.randint(settings.content_image_count_min, settings.content_image_count_max)
                     remote_images: list[RemoteImageCandidate] = []
+                    seen_remote_urls: set[str] = set()
                     for query in payload["image_search_queries"]:
                         try:
                             batch = search_remote_images(settings, query, desired_count, settings.content_image_provider)
@@ -427,8 +514,10 @@ def run_content_automation() -> dict:
                             result["errors"].append(f"[content:{payload['title']}] image search: {exc}")
                             continue
                         for item in batch:
-                            if not any(existing.url == item.url for existing in remote_images):
+                            normalized_url = normalize_remote_url(item.url)
+                            if normalized_url and normalized_url not in seen_remote_urls:
                                 remote_images.append(item)
+                                seen_remote_urls.add(normalized_url)
                             if len(remote_images) >= desired_count:
                                 break
                         if len(remote_images) >= desired_count:
@@ -440,6 +529,7 @@ def run_content_automation() -> dict:
                             downloads.append(download_remote_image(candidate, index, post_slug(payload["title"])))
                         except Exception as exc:
                             result["errors"].append(f"[content:{payload['title']}] image {index + 1}: {exc}")
+                    downloads = dedupe_downloads(downloads)
                     if downloads:
                         uploaded_assets = upload_downloaded_images(downloads, author)
                     elif remote_images:
@@ -454,6 +544,7 @@ def run_content_automation() -> dict:
                     content=build_body_html(payload["body_text"], uploaded_assets) if use_body_mode else payload["body_text"],
                     author=author,
                     is_published=False,
+                    ai_generated_by=f"{payload.get('_provider')}:{payload.get('_model')}",
                     ai_source={
                         "provider": payload.get("_provider"),
                         "model": payload.get("_model"),
@@ -461,6 +552,7 @@ def run_content_automation() -> dict:
                         "scenario": scenario,
                         "image_queries": payload["image_search_queries"],
                         "media_mode": payload["media_mode"],
+                        "image_provider": result["image_provider"],
                     },
                 )
                 if isinstance(category, Category):
@@ -503,7 +595,27 @@ def run_comment_automation() -> dict:
         if not users:
             raise ValueError("No seeded users available for AI comments")
 
-        posts = list(Post.objects.filter(is_published=True).select_related("author").order_by("?")[: max(settings.comments_per_run * 3, 20)])
+        candidate_window = max(settings.comments_per_run * 5, 20)
+        posts = list(
+            Post.objects.filter(is_published=True)
+            .select_related("author")
+            .order_by("-published_at", "-created_at")[:candidate_window]
+        )
+        comment_counts = {
+            item["target_document_id"]: item["total"]
+            for item in Comment.objects.filter(
+                target_type="post",
+                target_document_id__in=[post.document_id for post in posts],
+            )
+            .values("target_document_id")
+            .annotate(total=Count("id"))
+        }
+        posts.sort(
+            key=lambda item: (
+                comment_counts.get(item.document_id, 0),
+                -(item.published_at.timestamp() if item.published_at else item.created_at.timestamp()),
+            )
+        )
         if not posts:
             raise ValueError("No published posts available for AI comments")
 

@@ -23,6 +23,7 @@ class Post(PublishableModel, SluggedModel):
     )
     categories = models.ManyToManyField("taxonomy.Category", related_name="posts", blank=True)
     tags = models.ManyToManyField("taxonomy.Tag", related_name="posts", blank=True)
+    ai_generated_by = models.CharField(max_length=120, blank=True, db_index=True)
     ai_source = models.JSONField(default=dict, blank=True)
 
     class Meta:
@@ -60,6 +61,7 @@ class MediaAsset(DocumentedModel):
     width = models.PositiveIntegerField(null=True, blank=True)
     height = models.PositiveIntegerField(null=True, blank=True)
     source = models.CharField(max_length=50, blank=True, default="upload")
+    content_checksum = models.CharField(max_length=64, blank=True, db_index=True)
     cloudinary_public_id = models.CharField(max_length=255, blank=True, db_index=True)
     cloudinary_resource_type = models.CharField(max_length=32, blank=True, default="image")
     cloudinary_asset_folder = models.CharField(max_length=255, blank=True, db_index=True)

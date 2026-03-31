@@ -16,7 +16,9 @@ import re
 from .forms import AISettingsForm, CategoryForm, CommentForm, GA4SettingsForm, GoogleOAuthSettingsForm, MediaStorageSettingsForm, ModeratorAssignmentForm, PageForm, PostForm, ReportForm, TagForm
 from trekky_apps.accounts.seed_users import DEFAULT_SEED_PASSWORD, build_seed_user_draft
 from trekky_apps.content.models import Comment, CommentStatus, Page, Post
+from trekky_apps.content.post_media_service import PostMediaSyncError, delete_post_with_media
 from trekky_apps.engagement.models import Report, ReportStatus
+from trekky_apps.integrations.ai_automation import run_comment_automation, run_content_automation
 from trekky_apps.integrations.models import AIAutomationSettings, GA4AnalyticsSettings, GoogleOAuthSettings, MediaStorageSettings
 from trekky_apps.moderation.models import ModerationAction, ModeratorCategoryAssignment
 from trekky_apps.taxonomy.models import Category, CategoryStatus, Tag
@@ -384,6 +386,16 @@ class PostDeleteView(AdminAppDeleteView):
     page_subtitle = "This removes the selected post."
     success_message = "Post deleted successfully."
     active_nav = "posts"
+
+    def form_valid(self, form):
+        try:
+            delete_post_with_media(self.object)
+        except PostMediaSyncError as exc:
+            messages.error(self.request, f"Could not delete post media: {exc}")
+            return self.render_to_response(self.get_context_data(form=form))
+        if self.success_message:
+            messages.success(self.request, self.success_message)
+        return redirect(self.get_success_url())
 
 
 class PostDetailView(AdminAppAccessMixin, DetailView):
@@ -972,6 +984,7 @@ class SettingsView(AdminAppAccessMixin, TemplateView):
         media = MediaStorageSettings.objects.order_by("-updated_at").first() or MediaStorageSettings()
         google_oauth = GoogleOAuthSettings.get_solo()
         active_tab = self.get_active_tab()
+        action = (request.POST.get("action") or "").strip()
         ga4_form = GA4SettingsForm(request.POST, instance=ga4, prefix="ga4")
         ai_form = AISettingsForm(request.POST, instance=ai, prefix="ai")
         media_form = MediaStorageSettingsForm(request.POST, instance=media, prefix="media")
@@ -981,6 +994,26 @@ class SettingsView(AdminAppAccessMixin, TemplateView):
             ai_form.save()
             media_form.save()
             google_oauth_form.save()
+            if action == "run_ai_content_test":
+                try:
+                    result = run_content_automation()
+                    messages.success(
+                        request,
+                        f"AI content test run completed: created {result.get('created_posts', 0)} post(s), uploaded {result.get('uploaded_images', 0)} image(s).",
+                    )
+                except Exception as exc:
+                    messages.error(request, f"AI content test run failed: {exc}")
+                return redirect(f"{reverse('admin_app:settings')}?tab={active_tab}")
+            if action == "run_ai_comment_test":
+                try:
+                    result = run_comment_automation()
+                    messages.success(
+                        request,
+                        f"AI comment test run completed: created {result.get('created_comments', 0)} comment(s).",
+                    )
+                except Exception as exc:
+                    messages.error(request, f"AI comment test run failed: {exc}")
+                return redirect(f"{reverse('admin_app:settings')}?tab={active_tab}")
             messages.success(request, "Settings updated successfully.")
             return redirect(f"{reverse('admin_app:settings')}?tab={active_tab}")
         messages.error(request, "Please correct the errors below.")

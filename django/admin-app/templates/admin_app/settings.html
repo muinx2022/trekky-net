@@ -96,6 +96,9 @@
               <div class="settings-pane-head">
                 <h2>AI Content</h2>
                 <p>Control scheduled post generation, selected categories, prompts, and media placement.</p>
+                <div class="mt-3">
+                  <button type="submit" class="btn btn-outline-primary btn-sm" name="action" value="run_ai_content_test">Test Run Post Content</button>
+                </div>
               </div>
               <div class="settings-section mb-4">
                 <div class="settings-subhead">Run Control</div>
@@ -128,12 +131,6 @@
               <div class="settings-section mb-4">
                 <div class="settings-subhead">Content Scope</div>
                 <div class="row g-3">
-                  <div class="col-12">
-                    <label class="form-label fw-semibold" for="{{ ai_form.content_category_document_ids.id_for_label }}">{{ ai_form.content_category_document_ids.label }}</label>
-                    {{ ai_form.content_category_document_ids }}
-                    {% if ai_form.content_category_document_ids.help_text %}<div class="form-text">{{ ai_form.content_category_document_ids.help_text }}</div>{% endif %}
-                    {% if ai_form.content_category_document_ids.errors %}<div class="text-danger small mt-2">{{ ai_form.content_category_document_ids.errors|join:", " }}</div>{% endif %}
-                  </div>
                   <div class="col-12">
                     <label class="form-label fw-semibold" for="{{ ai_form.content_scenario_prompt.id_for_label }}">{{ ai_form.content_scenario_prompt.label }}</label>
                     {{ ai_form.content_scenario_prompt }}
@@ -183,6 +180,9 @@
               <div class="settings-pane-head">
                 <h2>AI Comments</h2>
                 <p>Configure auto-generated comments and reply behavior on published posts.</p>
+                <div class="mt-3">
+                  <button type="submit" class="btn btn-outline-primary btn-sm" name="action" value="run_ai_comment_test">Test Run Post Comment</button>
+                </div>
               </div>
               <div class="settings-section mb-4">
                 <div class="row g-3">

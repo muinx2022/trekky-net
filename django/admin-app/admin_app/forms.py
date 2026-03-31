@@ -1,7 +1,9 @@
 from django import forms
 from django.contrib.auth import get_user_model
+from django.db import transaction
 
 from trekky_apps.content.models import Comment, Page, Post
+from trekky_apps.content.post_media_service import get_post_media_assets, sync_post_media
 from trekky_apps.engagement.models import Report
 from trekky_apps.integrations.models import AIAutomationSettings, GA4AnalyticsSettings, GoogleOAuthSettings, MediaStorageSettings
 from trekky_apps.moderation.models import ModeratorCategoryAssignment
@@ -65,6 +67,11 @@ class AutoSlugFormMixin:
 
 class PostForm(AutoSlugFormMixin, BootstrapFormMixin, forms.ModelForm):
     slug_source_field = "title"
+    ai_generated_by_display = forms.CharField(
+        required=False,
+        label="Post by AI",
+        disabled=True,
+    )
     image_asset_ids = forms.CharField(
         required=False,
         label="Media",
@@ -93,6 +100,22 @@ class PostForm(AutoSlugFormMixin, BootstrapFormMixin, forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self._previous_media_assets = get_post_media_assets(self.instance) if self.instance.pk else set()
+        self.fields["ai_generated_by_display"].initial = getattr(self.instance, "ai_generated_by", "") or "Manual post"
+        self.order_fields(
+            [
+                "title",
+                "slug",
+                "excerpt",
+                "content",
+                "ai_generated_by_display",
+                "author",
+                "categories",
+                "is_published",
+                "tag_names",
+                "image_asset_ids",
+            ]
+        )
         self.fields["author"].queryset = User.objects.order_by("email")
         self.fields["categories"].queryset = Category.objects.order_by("sort_order", "name")
         self.fields["categories"].choices = build_category_tree_choices()
@@ -132,9 +155,8 @@ class PostForm(AutoSlugFormMixin, BootstrapFormMixin, forms.ModelForm):
         if self.instance.pk:
             self.fields["tag_names"].initial = ", ".join(self.instance.tags.order_by("name").values_list("name", flat=True))
 
+    @transaction.atomic
     def save(self, commit=True):
-        from trekky_apps.content.media_services import attach_media_assets_to_post
-
         post = super().save(commit=commit)
         tag_names = []
         for raw_name in str(self.cleaned_data.get("tag_names", "")).split(","):
@@ -156,7 +178,7 @@ class PostForm(AutoSlugFormMixin, BootstrapFormMixin, forms.ModelForm):
                 existing = Tag.objects.create(name=name)
             tag_objects.append(existing)
         post.tags.set(tag_objects)
-        attach_media_assets_to_post(post, image_asset_ids)
+        sync_post_media(post, self._previous_media_assets, image_asset_ids)
         return post
 
 
@@ -278,7 +300,6 @@ class AISettingsForm(BootstrapFormMixin, forms.ModelForm):
             "content_enabled",
             "content_cron",
             "content_posts_per_run",
-            "content_category_document_ids",
             "content_scenario_prompt",
             "content_last_scenario",
             "content_prompt",
@@ -309,23 +330,17 @@ class AISettingsForm(BootstrapFormMixin, forms.ModelForm):
             "comment_prompt": forms.Textarea(attrs={"rows": 5}),
             "reply_prompt": forms.Textarea(attrs={"rows": 5}),
             "content_scenario_prompt": forms.Textarea(attrs={"rows": 8}),
-            "content_category_document_ids": forms.Textarea(attrs={"rows": 4}),
+            "content_last_scenario": forms.TextInput(),
             "openai_models": forms.Textarea(attrs={"rows": 3}),
             "anthropic_models": forms.Textarea(attrs={"rows": 3}),
         }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        for json_field in ("content_category_document_ids", "openai_models", "anthropic_models"):
+        for json_field in ("openai_models", "anthropic_models"):
             initial = self.initial.get(json_field, getattr(self.instance, json_field, []))
             if isinstance(initial, list):
                 self.fields[json_field].initial = "\n".join(str(item) for item in initial)
-
-    def clean_content_category_document_ids(self):
-        raw = self.cleaned_data["content_category_document_ids"]
-        if isinstance(raw, list):
-            return raw
-        return [line.strip() for line in str(raw).splitlines() if line.strip()]
 
     def clean_openai_models(self):
         raw = self.cleaned_data["openai_models"]

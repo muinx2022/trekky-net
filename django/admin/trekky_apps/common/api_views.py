@@ -27,6 +27,7 @@ from trekky_apps.content.cloudinary_service import (
 )
 from trekky_apps.content.media_services import attach_media_assets_to_post, create_media_asset_from_upload
 from trekky_apps.content.models import Comment, MediaAsset, Page, Post
+from trekky_apps.content.post_media_service import PostMediaSyncError, delete_post_with_media, get_post_media_assets, sync_post_media
 from trekky_apps.content.serializers import (
     CommentSerializer,
     MediaAssetSerializer,
@@ -82,6 +83,7 @@ def legacy_post_payload(post: Post):
         "slug": post.slug,
         "excerpt": post.excerpt,
         "content": post.content,
+        "aiGeneratedBy": post.ai_generated_by,
         "createdAt": post.created_at.isoformat() if post.created_at else None,
         "updatedAt": post.updated_at.isoformat() if post.updated_at else None,
         "publishedAt": post.published_at.isoformat() if post.published_at else None,
@@ -299,6 +301,14 @@ class AdminPostViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated, IsAdminOrEditor]
     queryset = Post.objects.prefetch_related("categories", "tags", "assets", "author").all()
 
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        try:
+            delete_post_with_media(instance)
+        except PostMediaSyncError as exc:
+            return Response({"error": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
 
 class AdminPageViewSet(viewsets.ModelViewSet):
     serializer_class = PageSerializer
@@ -370,6 +380,7 @@ class MyPostViewSet(viewsets.ModelViewSet):
         return PostSerializer
 
     def _apply_relations(self, post: Post, validated_data: dict):
+        previous_media_assets = get_post_media_assets(post) if post.pk else set()
         category_document_ids = validated_data.pop("category_document_ids", None)
         tag_document_ids = validated_data.pop("tag_document_ids", None)
         image_ids = validated_data.pop("image_ids", None)
@@ -392,8 +403,10 @@ class MyPostViewSet(viewsets.ModelViewSet):
             tags = Tag.objects.filter(document_id__in=tag_document_ids)
             post.tags.set(tags)
 
-        if image_ids is not None:
-            attach_media_assets_to_post(post, image_ids)
+        gallery_asset_ids = image_ids if image_ids is not None else list(
+            post.assets.order_by("sort_order", "id").values_list("media_asset_id", flat=True)
+        )
+        sync_post_media(post, previous_media_assets, [item for item in gallery_asset_ids if item])
 
         return post
 
@@ -409,6 +422,14 @@ class MyPostViewSet(viewsets.ModelViewSet):
         serializer.is_valid(raise_exception=True)
         post = self._apply_relations(instance, serializer.validated_data)
         return Response(PostSerializer(post).data)
+
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        try:
+            delete_post_with_media(instance)
+        except PostMediaSyncError as exc:
+            return Response({"error": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class MyPostPublishView(APIView):
@@ -813,6 +834,7 @@ class LegacyPostUpdateView(APIView):
 
     def put(self, request, document_id):
         post = generics.get_object_or_404(Post, document_id=document_id, author=request.user)
+        previous_media_assets = get_post_media_assets(post)
         data = request.data.get("data", request.data)
         title = data.get("title")
         content = data.get("content")
@@ -838,9 +860,12 @@ class LegacyPostUpdateView(APIView):
             post.categories.set(_resolve_category_documents(category_values))
         if tag_values is not None:
             post.tags.set(_resolve_tag_documents(tag_values))
-        if image_values is not None:
-            image_ids = [int(value) for value in image_values if str(value).isdigit()]
-            attach_media_assets_to_post(post, image_ids)
+        image_ids = (
+            [int(value) for value in image_values if str(value).isdigit()]
+            if image_values is not None
+            else list(post.assets.order_by("sort_order", "id").values_list("media_asset_id", flat=True))
+        )
+        sync_post_media(post, previous_media_assets, [item for item in image_ids if item])
 
         post.refresh_from_db()
         return Response({"data": legacy_post_payload(post)})

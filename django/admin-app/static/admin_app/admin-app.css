@@ -183,18 +183,28 @@
 }
 
 .tiptap-editor {
-  min-height: 24rem;
+  min-height: 18rem;
+  max-height: 34rem;
+  overflow-y: auto;
   overflow-x: hidden;
 }
 
 .tiptap-prose {
-  min-height: 24rem;
+  min-height: 18rem;
+  max-height: 34rem;
   max-width: 100%;
   padding: 1rem 1.1rem;
   outline: none;
   color: #0f172a;
   line-height: 1.75;
+  overflow-y: auto;
   overflow-x: hidden;
+}
+
+.tiptap-prose.ProseMirror {
+  min-height: 18rem;
+  max-height: 34rem;
+  overflow-y: auto;
 }
 
 .tiptap-prose p.is-editor-empty:first-child::before {
