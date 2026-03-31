@@ -263,5 +263,5 @@ class AIAutomationTests(TestCase):
         generate_content_payload(self.settings, category, "Di bien trai mua")
 
         sent_prompt = mock_model_text.call_args.args[1]
-        self.assertIn("Hay viet bai trong danh muc: Khám phá và Trải nghiệm.", sent_prompt)
+        self.assertIn("Hãy viết bài trong danh mục: Khám phá và Trải nghiệm.", sent_prompt)
         self.assertIn("Category: Khám phá và Trải nghiệm", sent_prompt)
