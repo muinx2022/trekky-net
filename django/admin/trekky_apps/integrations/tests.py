@@ -245,3 +245,23 @@ class AIAutomationTests(TestCase):
         self.assertEqual(payload["title"], "Một ngày biển mưa")
         self.assertEqual(payload["_provider"], "openai")
         self.assertEqual(mock_model_text.call_count, 2)
+
+    @patch("trekky_apps.integrations.ai_automation.enabled_models")
+    @patch("trekky_apps.integrations.ai_automation.model_text")
+    def test_generate_content_payload_prompt_explicitly_requires_selected_category(self, mock_model_text, mock_enabled_models):
+        mock_enabled_models.return_value = [SelectedModel(provider="openai", model="gpt-4.1-mini", api_key="key")]
+        mock_model_text.return_value = """{
+          "title": "Một ngày ở biển",
+          "excerpt": "Tom tat",
+          "body_text": "Noi dung bai viet. Cau hai. Cau ba. Cau bon.",
+          "related_tags": ["bien"],
+          "image_search_queries": ["beach candid phone photo"],
+          "media_mode": "body"
+        }"""
+
+        category = type("CategoryStub", (), {"name": "Khám phá và Trải nghiệm"})()
+        generate_content_payload(self.settings, category, "Di bien trai mua")
+
+        sent_prompt = mock_model_text.call_args.args[1]
+        self.assertIn("Hay viet bai trong danh muc: Khám phá và Trải nghiệm.", sent_prompt)
+        self.assertIn("Category: Khám phá và Trải nghiệm", sent_prompt)

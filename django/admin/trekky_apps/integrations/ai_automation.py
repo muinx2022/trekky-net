@@ -272,6 +272,8 @@ def generate_content_payload(settings: AIAutomationSettings, category: Category,
         raise ValueError("No enabled AI provider/model configured for content generation")
     prompt = (
         f"{settings.content_prompt or DEFAULT_CONTENT_PROMPT}\n"
+        f"Hay viet bai trong danh muc: {category.name}.\n"
+        "Noi dung, title, tags va goc nhin phai phu hop voi danh muc nay, khong duoc lac sang danh muc khac.\n"
         f"Category: {category.name}\n"
         f"Scenario: {scenario}\n"
         "Return valid JSON only."
