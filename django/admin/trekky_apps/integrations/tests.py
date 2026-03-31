@@ -13,6 +13,7 @@ from trekky_apps.integrations.ai_automation import (
     run_content_automation,
 )
 from trekky_apps.integrations.models import AIAutomationSettings
+from trekky_apps.taxonomy.models import Category, CategoryStatus
 
 
 User = get_user_model()
@@ -33,6 +34,11 @@ class AIAutomationTests(TestCase):
             is_seeded=True,
         )
         self.settings = AIAutomationSettings.get_solo()
+        self.category = Category.objects.create(
+            name="Khám phá và Trải nghiệm",
+            status=CategoryStatus.PUBLISHED,
+            sort_order=1,
+        )
 
     @patch("trekky_apps.integrations.ai_automation.generate_comment_text")
     def test_comment_automation_auto_follows_post_author_by_user_document_id(self, mock_generate_comment_text):
@@ -62,29 +68,16 @@ class AIAutomationTests(TestCase):
 
     @patch("trekky_apps.integrations.ai_automation.generate_content_payload")
     @patch("trekky_apps.integrations.ai_automation.has_image_provider_credentials", return_value=False)
-    def test_content_automation_uses_generic_category_fallback_when_none_configured(self, _mock_images, mock_generate_content_payload):
-        mock_generate_content_payload.return_value = {
-            "title": "Fallback category post",
-            "excerpt": "Excerpt",
-            "body_text": "Body text",
-            "related_tags": ["fallback"],
-            "image_search_queries": ["fallback travel"],
-            "media_mode": "body",
-            "_provider": "openai",
-            "_model": "gpt-4.1-mini",
-        }
+    def test_content_automation_requires_real_category_from_db(self, _mock_images, mock_generate_content_payload):
         self.settings.content_posts_per_run = 1
         self.settings.content_category_document_ids = ["missing-category"]
         self.settings.save(update_fields=["content_posts_per_run", "content_category_document_ids", "updated_at"])
 
-        result = run_content_automation()
+        with self.assertRaisesMessage(ValueError, "No categories available for AI content"):
+            run_content_automation()
 
-        self.assertEqual(result["created_posts"], 1)
-        post = Post.objects.get(title="Fallback category post")
-        self.assertEqual(post.categories.count(), 0)
-        self.assertTrue(post.author.is_seeded)
-        self.assertEqual(post.ai_generated_by, "openai:gpt-4.1-mini")
-        self.assertEqual(mock_generate_content_payload.call_args.args[1].document_id, "generic-content")
+        self.assertFalse(Post.objects.exists())
+        mock_generate_content_payload.assert_not_called()
 
     @patch("trekky_apps.integrations.ai_automation.generate_content_payload")
     @patch("trekky_apps.integrations.ai_automation.has_image_provider_credentials", return_value=False)

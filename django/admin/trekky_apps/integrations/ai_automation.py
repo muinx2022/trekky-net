@@ -77,20 +77,6 @@ class RemoteImageCandidate:
     alt: str = ""
 
 
-@dataclass(frozen=True)
-class GenericContentCategory:
-    document_id: str
-    name: str
-    slug: str
-
-
-GENERIC_CONTENT_CATEGORY = GenericContentCategory(
-    document_id="generic-content",
-    name="Du lich va trai nghiem",
-    slug="du-lich-va-trai-nghiem",
-)
-
-
 def get_ai_settings() -> AIAutomationSettings:
     settings = AIAutomationSettings.get_solo()
     if not settings.content_scenario_prompt:
@@ -534,11 +520,13 @@ def run_content_automation() -> dict:
         categories = choose_categories(settings)
         if not users:
             raise ValueError("No seeded users available for AI content")
+        if not categories:
+            raise ValueError("No categories available for AI content")
         scenarios = parse_lines(settings.content_scenario_prompt or DEFAULT_SCENARIOS)
         for _ in range(settings.content_posts_per_run):
             try:
                 author = random.choice(users)
-                category = random.choice(categories) if categories else GENERIC_CONTENT_CATEGORY
+                category = random.choice(categories)
                 scenario_pool = [item for item in scenarios if item != settings.content_last_scenario] or scenarios
                 scenario = random.choice(scenario_pool)
                 payload = generate_content_payload(settings, category, scenario)
@@ -596,8 +584,7 @@ def run_content_automation() -> dict:
                         "image_provider": result["image_provider"],
                     },
                 )
-                if isinstance(category, Category):
-                    post.categories.add(category)
+                post.categories.add(category)
                 post.tags.set(slugify_tags(payload["related_tags"]))
                 if uploaded_assets and not use_body_mode:
                     from trekky_apps.content.media_services import attach_media_assets_to_post
