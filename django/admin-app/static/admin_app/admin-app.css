@@ -95,9 +95,9 @@
   width: 2.45rem;
   height: 1.4rem;
   padding: 0.12rem;
-  border: 1px solid rgba(148, 163, 184, 0.3);
+  border: 1px solid #94a3b8;
   border-radius: 999px;
-  background: #e2e8f0;
+  background: #94a3b8;
   transition: background-color 0.2s ease, border-color 0.2s ease;
 }
 
@@ -1209,8 +1209,13 @@
 
 /* Status toggle */
 [data-bs-theme="dark"] .status-toggle {
-  background: #1e293b;
-  border-color: rgba(148, 163, 184, 0.2);
+  background: #475569;
+  border-color: #64748b;
+}
+
+[data-bs-theme="dark"] .status-toggle.is-on {
+  background: #16a34a;
+  border-color: #15803d;
 }
 
 /* Tiptap editor */

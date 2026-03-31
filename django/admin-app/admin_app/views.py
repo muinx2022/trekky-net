@@ -342,7 +342,7 @@ class PostListView(AdminAppListView):
             Value(0),
             output_field=IntegerField(),
         )
-    ).order_by("-updated_at")
+    ).order_by("-created_at")
     page_title = "Posts"
     page_subtitle = "Manage editorial content and preserve public permalink identifiers."
     create_url_name = "admin_app:post-create"

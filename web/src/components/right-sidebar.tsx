@@ -33,7 +33,7 @@ export async function RightSidebar({ categories = [], footerPages = [] }: RightS
   try {
     const [topPosts, topTags] = await Promise.all([
       getTopPosts(5),
-      getTopTags(10),
+      getTopTags(20),
     ]);
     posts = topPosts;
     tags = topTags;
