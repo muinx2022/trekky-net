@@ -68,9 +68,35 @@ class AIAutomationTests(TestCase):
 
     @patch("trekky_apps.integrations.ai_automation.generate_content_payload")
     @patch("trekky_apps.integrations.ai_automation.has_image_provider_credentials", return_value=False)
-    def test_content_automation_requires_real_category_from_db(self, _mock_images, mock_generate_content_payload):
+    def test_content_automation_falls_back_to_real_categories_when_saved_filter_is_stale(self, _mock_images, mock_generate_content_payload):
+        mock_generate_content_payload.return_value = {
+            "title": "Fallback to real category",
+            "excerpt": "Excerpt",
+            "body_text": "Body text",
+            "related_tags": ["fallback"],
+            "image_search_queries": ["fallback travel"],
+            "media_mode": "body",
+            "_provider": "openai",
+            "_model": "gpt-4.1-mini",
+        }
         self.settings.content_posts_per_run = 1
         self.settings.content_category_document_ids = ["missing-category"]
+        self.settings.save(update_fields=["content_posts_per_run", "content_category_document_ids", "updated_at"])
+
+        result = run_content_automation()
+
+        self.assertEqual(result["created_posts"], 1)
+        post = Post.objects.get(title="Fallback to real category")
+        self.assertEqual(post.categories.count(), 1)
+        self.assertEqual(post.categories.first(), self.category)
+        self.assertEqual(mock_generate_content_payload.call_args.args[1].document_id, self.category.document_id)
+
+    @patch("trekky_apps.integrations.ai_automation.generate_content_payload")
+    @patch("trekky_apps.integrations.ai_automation.has_image_provider_credentials", return_value=False)
+    def test_content_automation_requires_real_category_when_db_has_none(self, _mock_images, mock_generate_content_payload):
+        Category.objects.all().delete()
+        self.settings.content_posts_per_run = 1
+        self.settings.content_category_document_ids = []
         self.settings.save(update_fields=["content_posts_per_run", "content_category_document_ids", "updated_at"])
 
         with self.assertRaisesMessage(ValueError, "No categories available for AI content"):

@@ -132,7 +132,9 @@ def choose_categories(settings: AIAutomationSettings) -> list[Category]:
     document_ids = settings.content_category_document_ids or []
     queryset = Category.objects.all()
     if document_ids:
-        queryset = queryset.filter(document_id__in=document_ids)
+        filtered_queryset = queryset.filter(document_id__in=document_ids)
+        if filtered_queryset.exists():
+            queryset = filtered_queryset
     return list(queryset.order_by("sort_order", "name"))
 
 
