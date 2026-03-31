@@ -188,23 +188,39 @@ def model_text(selected: SelectedModel, prompt: str) -> str:
 
 
 def normalize_content_payload(payload: dict, scenario: str, preferred_media_mode: str) -> dict:
-    related_tags = [str(item).strip() for item in payload.get("related_tags", []) if str(item).strip()][:6]
-    image_search_queries = [str(item).strip() for item in payload.get("image_search_queries", []) if str(item).strip()][:8]
+    normalized_title = str(payload.get("title") or payload.get("headline") or "").strip()
+    normalized_excerpt = str(payload.get("excerpt") or payload.get("summary") or "").strip()
+    raw_body = (
+        payload.get("body_text")
+        or payload.get("bodyText")
+        or payload.get("content")
+        or payload.get("body")
+        or ""
+    )
+    normalized_body = normalize_body_text(str(raw_body).strip()[:2200])
+    related_tags = [
+        str(item).strip()
+        for item in (payload.get("related_tags") or payload.get("relatedTags") or [])
+        if str(item).strip()
+    ][:6]
+    image_search_queries = [
+        str(item).strip()
+        for item in (payload.get("image_search_queries") or payload.get("imageSearchQueries") or [])
+        if str(item).strip()
+    ][:8]
     if not image_search_queries:
-        title = str(payload.get("title") or scenario).strip()
+        title = normalized_title or scenario
         image_search_queries = [title, scenario]
-    media_mode = str(payload.get("media_mode") or preferred_media_mode or MediaMode.BODY).strip().lower()
+    media_mode = str(payload.get("media_mode") or payload.get("mediaMode") or preferred_media_mode or MediaMode.BODY).strip().lower()
     if media_mode not in {MediaMode.BODY, MediaMode.GALLERY}:
         media_mode = MediaMode.BODY
-    normalized_title = str(payload.get("title") or "").strip()
-    normalized_body = normalize_body_text(str(payload.get("body_text") or payload.get("content") or "").strip()[:2200])
     if not normalized_title:
         raise ValueError("AI content payload missing title")
     if not normalized_body:
         raise ValueError("AI content payload missing body_text")
     return {
         "title": normalized_title,
-        "excerpt": str(payload.get("excerpt") or "").strip(),
+        "excerpt": normalized_excerpt,
         "body_text": normalized_body,
         "related_tags": related_tags,
         "image_search_queries": image_search_queries,
@@ -270,7 +286,25 @@ def generate_content_payload(settings: AIAutomationSettings, category: Category,
             normalized["_model"] = selected.model
             return normalized
         except Exception as exc:
-            errors.append(f"{selected.provider}:{selected.model} {exc}")
+            repair_error = None
+            try:
+                repair_prompt = (
+                    "Rewrite the following AI post payload into valid JSON with these exact keys only: "
+                    "title, excerpt, body_text, related_tags, image_search_queries, media_mode. "
+                    "Rules: title and body_text are required; related_tags and image_search_queries must be arrays; "
+                    'media_mode must be either "body" or "gallery". Return JSON only.\n'
+                    f"Scenario: {scenario}\n"
+                    f"Original payload:\n{strip_json_fence(text) if 'text' in locals() else ''}"
+                )
+                repaired_text = model_text(selected, repair_prompt)
+                repaired_payload = json.loads(strip_json_fence(repaired_text))
+                normalized = normalize_content_payload(repaired_payload, scenario, settings.content_preferred_media_mode)
+                normalized["_provider"] = selected.provider
+                normalized["_model"] = selected.model
+                return normalized
+            except Exception as repair_exc:
+                repair_error = repair_exc
+            errors.append(f"{selected.provider}:{selected.model} {exc}; repair: {repair_error}")
     raise ValueError(errors[-1] if errors else "Unable to generate content")
 
 

@@ -5,7 +5,13 @@ from django.test import TestCase
 
 from trekky_apps.content.models import Comment, Post
 from trekky_apps.engagement.models import Interaction
-from trekky_apps.integrations.ai_automation import normalize_content_payload, run_comment_automation, run_content_automation
+from trekky_apps.integrations.ai_automation import (
+    SelectedModel,
+    generate_content_payload,
+    normalize_content_payload,
+    run_comment_automation,
+    run_content_automation,
+)
 from trekky_apps.integrations.models import AIAutomationSettings
 
 
@@ -191,3 +197,51 @@ class AIAutomationTests(TestCase):
         self.assertEqual(result["skipped"], 1)
         self.assertFalse(Post.objects.exists())
         self.assertIn("AI content payload missing title", " | ".join(result["errors"]))
+
+    def test_normalize_content_payload_accepts_camel_case_keys(self):
+        payload = normalize_content_payload(
+            {
+                "title": "Một chiều biển mưa",
+                "excerpt": "Tóm tắt ngắn",
+                "bodyText": "Đây là đoạn đầu. Đây là đoạn hai. Đây là đoạn ba. Đây là đoạn bốn.",
+                "relatedTags": ["biển", "bạn bè"],
+                "imageSearchQueries": ["beach rainy day candid phone photo"],
+                "mediaMode": "gallery",
+            },
+            "Scenario",
+            "body",
+        )
+
+        self.assertEqual(payload["title"], "Một chiều biển mưa")
+        self.assertEqual(payload["media_mode"], "gallery")
+        self.assertEqual(payload["related_tags"], ["biển", "bạn bè"])
+        self.assertTrue(payload["body_text"])
+
+    @patch("trekky_apps.integrations.ai_automation.enabled_models")
+    @patch("trekky_apps.integrations.ai_automation.model_text")
+    def test_generate_content_payload_repairs_missing_title(self, mock_model_text, mock_enabled_models):
+        mock_enabled_models.return_value = [SelectedModel(provider="openai", model="gpt-4.1-mini", api_key="key")]
+        mock_model_text.side_effect = [
+            """```json
+            {
+              "excerpt": "Tom tat",
+              "bodyText": "Noi dung bai viet. Cau hai. Cau ba. Cau bon.",
+              "relatedTags": ["bien"],
+              "imageSearchQueries": ["beach candid phone photo"]
+            }
+            ```""",
+            """{
+              "title": "Một ngày biển mưa",
+              "excerpt": "Tom tat",
+              "body_text": "Noi dung bai viet. Cau hai. Cau ba. Cau bon.",
+              "related_tags": ["bien"],
+              "image_search_queries": ["beach candid phone photo"],
+              "media_mode": "body"
+            }""",
+        ]
+
+        payload = generate_content_payload(self.settings, type("CategoryStub", (), {"name": "Biển"})(), "Di bien trai mua")
+
+        self.assertEqual(payload["title"], "Một ngày biển mưa")
+        self.assertEqual(payload["_provider"], "openai")
+        self.assertEqual(mock_model_text.call_count, 2)
