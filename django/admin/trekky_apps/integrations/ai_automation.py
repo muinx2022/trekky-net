@@ -122,8 +122,7 @@ def cron_due(expression: str, now: datetime, tz_name: str, last_run_at: datetime
     if last_run_at and last_run_at.astimezone(zone).strftime("%Y-%m-%d %H:%M") == zoned_now.strftime("%Y-%m-%d %H:%M"):
         return False
     base = zoned_now.replace(second=0, microsecond=0)
-    previous = croniter(expression, base).get_prev(datetime)
-    return previous == base
+    return bool(croniter.match(expression, base))
 
 
 def enabled_models(settings: AIAutomationSettings) -> list[SelectedModel]:
