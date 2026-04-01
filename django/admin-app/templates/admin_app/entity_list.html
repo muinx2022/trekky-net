@@ -129,9 +129,24 @@
       <div class="col-12 col-md-6 col-lg-5">
         <input type="search" name="q" value="{{ query }}" class="form-control" placeholder="Search {{ page_title|lower }}">
       </div>
+      {% for filter_field in filter_fields %}
+        <div class="col-12 col-md-3 col-lg-2">
+          <select name="{{ filter_field.name }}" class="form-select" aria-label="{{ filter_field.label }}">
+            <option value="">{{ filter_field.label }}</option>
+            {% for choice in filter_field.choices %}
+              <option value="{{ choice.value }}"{% if filter_field.value == choice.value %} selected{% endif %}>{{ choice.label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      {% endfor %}
       <div class="col-auto">
         <button type="submit" class="btn btn-outline-secondary">Search</button>
       </div>
+      {% if has_active_filters %}
+        <div class="col-auto">
+          <a href="{{ reset_url }}" class="btn btn-outline-secondary">Reset</a>
+        </div>
+      {% endif %}
     </form>
   </div>
   {% if active_nav == "users" and current_user_tab == "seed" %}
@@ -159,6 +174,19 @@
           <tr{% if active_nav == "posts" %} class="admin-post-row"{% endif %}>
             {% if active_nav == "posts" %}
               <td data-label="Title" class="admin-table-primary-cell"><div class="fw-semibold"><a href="{% url detail_url_name item.document_id %}" class="text-decoration-none">{{ item.title }}</a></div><div class="small text-secondary">{{ item.slug }}</div><div class="small text-secondary">{% if item.author %}By {{ item.author }}{% else %}No author{% endif %}</div></td>
+              <td data-label="Category" class="admin-post-mobile-hidden">
+                {% with categories=item.categories.all %}
+                  {% if categories %}
+                    <div class="small">
+                      {% for category in categories %}
+                        {{ category.name }}{% if not forloop.last %}, {% endif %}
+                      {% endfor %}
+                    </div>
+                  {% else %}
+                    <span class="text-secondary">-</span>
+                  {% endif %}
+                {% endwith %}
+              </td>
               <td data-label="Comments" class="admin-post-mobile-hidden">{{ item.comment_count|default:0 }}</td>
               <td data-label="Published" class="admin-post-status-cell">
                 <form method="post" action="{% url 'admin_app:post-toggle-status' item.document_id %}" class="d-inline-flex align-items-center">

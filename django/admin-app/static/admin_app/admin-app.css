@@ -909,14 +909,15 @@
 }
 
 .comment-tree-scroll {
-  overflow-x: auto;
-  overflow-y: visible;
-  padding-right: 0.25rem;
+  overflow: visible;
+  padding-right: 0;
 }
 
 .comment-tree-scroll.is-capped {
   max-height: 70vh;
+  overflow-x: auto;
   overflow-y: auto;
+  padding-right: 0.25rem;
 }
 
 .post-comment-node {

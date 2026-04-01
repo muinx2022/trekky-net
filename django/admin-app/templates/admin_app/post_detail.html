@@ -91,9 +91,13 @@
 
         {% if comment_tree %}
           <div class="comment-tree-root">
-            <div class="comment-tree-scroll{% if comment_count > 8 %} is-capped{% endif %}">
+            {% if comment_count > 8 %}
+            <div class="comment-tree-scroll is-capped">
               {% include "admin_app/post_detail_comment_nodes.html" with nodes=comment_tree post=post %}
             </div>
+            {% else %}
+              {% include "admin_app/post_detail_comment_nodes.html" with nodes=comment_tree post=post %}
+            {% endif %}
           </div>
         {% else %}
           <div class="text-secondary">No comments found for this post.</div>

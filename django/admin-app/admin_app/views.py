@@ -116,6 +116,20 @@ def build_category_tree(categories):
     return nest(None)
 
 
+def build_category_filter_choices(categories):
+    choices = []
+
+    def flatten(nodes, depth=0):
+        prefix = "" if depth == 0 else f'{"-- " * depth}'
+        for node in nodes:
+            category = node["category"]
+            choices.append({"value": category.document_id, "label": f"{prefix}{category.name}"})
+            flatten(node["children"], depth + 1)
+
+    flatten(build_category_tree(categories))
+    return choices
+
+
 def build_comment_tree(comments):
     children_map = {}
     for comment in comments:
@@ -236,6 +250,7 @@ class AdminAppListView(AdminAppAccessMixin, ListView):
     delete_url_name = ""
     view_url_name = ""
     extra_actions = []
+    filter_fields = []
 
     def get_queryset(self):
         queryset = super().get_queryset()
@@ -251,6 +266,11 @@ class AdminAppListView(AdminAppAccessMixin, ListView):
         context = super().get_context_data(**kwargs)
         params = self.request.GET.copy()
         params.pop("page", None)
+        active_filter_values = []
+        for field in self.filter_fields:
+            field_name = field.get("name") if isinstance(field, dict) else None
+            if field_name:
+                active_filter_values.append(self.request.GET.get(field_name, "").strip())
         page_obj = context.get("page_obj")
         pagination_pages = []
         if page_obj:
@@ -259,7 +279,10 @@ class AdminAppListView(AdminAppAccessMixin, ListView):
             start = max(1, current - 2)
             end = min(total, current + 2)
             pagination_pages = list(range(start, end + 1))
-        context.update({"page_title": self.page_title, "page_subtitle": self.page_subtitle, "create_url": reverse(self.create_url_name) if self.create_url_name else "", "create_label": self.create_label, "columns": self.columns, "query": self.request.GET.get("q", ""), "detail_url_name": self.detail_url_name, "delete_url_name": self.delete_url_name, "extra_actions": self.extra_actions, "pagination_query": params.urlencode(), "pagination_pages": pagination_pages})
+        reset_url = self.request.path
+        if self.active_nav == "users":
+            reset_url = f"{reset_url}?tab={getattr(self, 'get_user_tab', lambda: 'user')()}"
+        context.update({"page_title": self.page_title, "page_subtitle": self.page_subtitle, "create_url": reverse(self.create_url_name) if self.create_url_name else "", "create_label": self.create_label, "columns": self.columns, "query": self.request.GET.get("q", ""), "detail_url_name": self.detail_url_name, "delete_url_name": self.delete_url_name, "extra_actions": self.extra_actions, "pagination_query": params.urlencode(), "pagination_pages": pagination_pages, "filter_fields": self.filter_fields, "reset_url": reset_url, "has_active_filters": bool(self.request.GET.get("q", "").strip() or any(active_filter_values))})
         context["view_url_name"] = self.view_url_name
         return context
 
@@ -328,7 +351,7 @@ class DashboardView(AdminAppAccessMixin, TemplateView):
 
 class PostListView(AdminAppListView):
     model = Post
-    queryset = Post.objects.select_related("author").annotate(
+    queryset = Post.objects.select_related("author").prefetch_related("categories").annotate(
         comment_count=Coalesce(
             Subquery(
                 Comment.objects.filter(
@@ -347,12 +370,55 @@ class PostListView(AdminAppListView):
     page_subtitle = "Manage editorial content and preserve public permalink identifiers."
     create_url_name = "admin_app:post-create"
     create_label = "New Post"
-    columns = ["Title", "Cmt", "Published", "Updated", "Actions"]
+    columns = ["Title", "Category", "Cmt", "Published", "Updated", "Actions"]
     active_nav = "posts"
     search_fields = ("title", "slug", "document_id")
     detail_url_name = "admin_app:post-update"
     delete_url_name = "admin_app:post-delete"
     view_url_name = "admin_app:post-detail"
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        category_filter = self.request.GET.get("category", "").strip()
+        status_filter = self.request.GET.get("status", "").strip()
+
+        if category_filter:
+            queryset = queryset.filter(categories__document_id=category_filter)
+
+        if status_filter == "published":
+            queryset = queryset.filter(is_published=True)
+        elif status_filter == "draft":
+            queryset = queryset.filter(is_published=False)
+
+        return queryset.distinct()
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        selected_category = self.request.GET.get("category", "").strip()
+        selected_status = self.request.GET.get("status", "").strip()
+        category_choices = build_category_filter_choices(
+            Category.objects.select_related("parent").only("id", "document_id", "name", "sort_order", "parent_id")
+        )
+        filter_fields = [
+            {
+                "name": "category",
+                "label": "Category",
+                "value": selected_category,
+                "choices": category_choices,
+            },
+            {
+                "name": "status",
+                "label": "Status",
+                "value": selected_status,
+                "choices": [
+                    {"value": "published", "label": "Published"},
+                    {"value": "draft", "label": "Draft"},
+                ],
+            },
+        ]
+        context["filter_fields"] = filter_fields
+        context["has_active_filters"] = bool(context.get("query") or selected_category or selected_status)
+        return context
 
 
 class PostCreateView(AdminAppFormView, CreateView):
