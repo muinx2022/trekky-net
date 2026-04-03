@@ -1137,7 +1137,7 @@ class PostToggleStatusView(AdminAppAccessMixin, View):
         post.is_published = not post.is_published
         post.save()
         messages.success(request, "Post status updated.")
-        return redirect("admin_app:post-list")
+        return redirect(request.META.get("HTTP_REFERER") or reverse("admin_app:post-list"))
 
 
 class PageToggleStatusView(AdminAppAccessMixin, View):
@@ -1146,7 +1146,7 @@ class PageToggleStatusView(AdminAppAccessMixin, View):
         page.is_published = not page.is_published
         page.save()
         messages.success(request, "Page status updated.")
-        return redirect("admin_app:page-list")
+        return redirect(request.META.get("HTTP_REFERER") or reverse("admin_app:page-list"))
 
 
 class CategoryToggleStatusView(AdminAppAccessMixin, View):
@@ -1155,7 +1155,7 @@ class CategoryToggleStatusView(AdminAppAccessMixin, View):
         category.status = CategoryStatus.DRAFT if category.status == CategoryStatus.PUBLISHED else CategoryStatus.PUBLISHED
         category.save(update_fields=["status", "updated_at"])
         messages.success(request, "Category status updated.")
-        return redirect("admin_app:category-list")
+        return redirect(request.META.get("HTTP_REFERER") or reverse("admin_app:category-list"))
 
 
 class CommentToggleStatusView(AdminAppAccessMixin, View):
@@ -1164,7 +1164,7 @@ class CommentToggleStatusView(AdminAppAccessMixin, View):
         comment.status = CommentStatus.PENDING if comment.status == CommentStatus.PUBLISHED else CommentStatus.PUBLISHED
         comment.save()
         messages.success(request, "Comment status updated.")
-        return redirect("admin_app:comment-list")
+        return redirect(request.META.get("HTTP_REFERER") or reverse("admin_app:comment-list"))
 
 
 class ReportApproveView(AdminAppAccessMixin, View):
