@@ -5,7 +5,7 @@ from django.db import transaction
 from trekky_apps.content.models import Comment, Page, Post
 from trekky_apps.content.post_media_service import get_post_media_assets, sync_post_media
 from trekky_apps.engagement.models import Report
-from trekky_apps.integrations.models import AIAutomationSettings, GA4AnalyticsSettings, GoogleOAuthSettings, MediaStorageSettings
+from trekky_apps.integrations.models import AIAutomationSettings, EmailAuthSettings, GA4AnalyticsSettings, GoogleOAuthSettings, MediaStorageSettings
 from trekky_apps.moderation.models import ModeratorCategoryAssignment
 from trekky_apps.taxonomy.models import Category, Tag
 from trekky_apps.common.models import trekky_slugify
@@ -359,6 +359,41 @@ class GoogleOAuthSettingsForm(BootstrapFormMixin, forms.ModelForm):
     class Meta:
         model = GoogleOAuthSettings
         fields = ("client_id", "client_secret", "redirect_uri", "frontend_url")
+
+
+class EmailAuthSettingsForm(BootstrapFormMixin, forms.ModelForm):
+    class Meta:
+        model = EmailAuthSettings
+        fields = (
+            "smtp_host",
+            "smtp_port",
+            "smtp_username",
+            "smtp_password",
+            "smtp_use_tls",
+            "smtp_use_ssl",
+            "smtp_timeout",
+            "from_email",
+            "from_name",
+            "reply_to",
+            "frontend_base_url",
+            "login_path",
+            "password_reset_path",
+            "registration_email_subject",
+            "registration_email_body",
+            "password_reset_email_subject",
+            "password_reset_email_body",
+        )
+        widgets = {
+            "smtp_password": forms.PasswordInput(render_value=True),
+            "registration_email_body": forms.Textarea(attrs={"rows": 8}),
+            "password_reset_email_body": forms.Textarea(attrs={"rows": 8}),
+        }
+
+    def clean(self):
+        cleaned_data = super().clean()
+        if cleaned_data.get("smtp_use_tls") and cleaned_data.get("smtp_use_ssl"):
+            self.add_error("smtp_use_ssl", "Chỉ nên bật một trong hai chế độ TLS hoặc SSL.")
+        return cleaned_data
 
 
 class UserForm(BootstrapFormMixin, forms.ModelForm):

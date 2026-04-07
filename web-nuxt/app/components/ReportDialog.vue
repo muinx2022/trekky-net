@@ -3,7 +3,7 @@
     <button
       type="button"
       :disabled="alreadyReported"
-      :title="alreadyReported ? 'Ban da bao cao noi dung nay' : 'Bao cao noi dung'"
+      :title="alreadyReported ? 'Bạn đã báo cáo nội dung này' : 'Báo cáo nội dung'"
       :class="buttonClass"
       @click="handleOpen"
     >
@@ -11,20 +11,20 @@
         <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" />
         <line x1="4" x2="4" y1="22" y2="15" />
       </svg>
-      {{ alreadyReported ? "Da bao cao" : "Bao cao" }}
+      {{ alreadyReported ? "Đã báo cáo" : "Báo cáo" }}
     </button>
 
     <Teleport to="body">
       <div v-if="isOpen" class="fixed inset-0 z-[110] flex items-center justify-center p-4">
-        <button type="button" class="absolute inset-0 bg-black/50 backdrop-blur-sm" aria-label="Dong bao cao" @click="handleClose" />
+        <button type="button" class="absolute inset-0 bg-black/50 backdrop-blur-sm" aria-label="Đóng báo cáo" @click="handleClose" />
 
         <div :class="dialogClass">
           <div class="flex items-start justify-between">
             <div>
-              <h2 :class="titleClass">Bao cao bai viet</h2>
-              <p :class="subtitleClass">Noi dung vi pham se duoc doi ngu kiem duyet xem xet.</p>
+              <h2 :class="titleClass">Báo cáo bài viết</h2>
+              <p :class="subtitleClass">Nội dung vi phạm sẽ được đội ngũ kiểm duyệt xem xét.</p>
             </div>
-            <button type="button" :class="closeButtonClass" aria-label="Dong bao cao" @click="handleClose">
+            <button type="button" :class="closeButtonClass" aria-label="Đóng báo cáo" @click="handleClose">
               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                 <path d="M18 6 6 18" />
                 <path d="m6 6 12 12" />
@@ -37,12 +37,12 @@
               <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
               <path d="m9 11 3 3L22 4" />
             </svg>
-            <p class="text-sm font-medium">Bao cao da duoc gui. Cam on ban.</p>
+            <p class="text-sm font-medium">Báo cáo đã được gửi. Cảm ơn bạn.</p>
           </div>
 
           <div v-else class="flex flex-col gap-5">
             <div class="flex flex-col gap-2">
-              <p :class="labelClass">Ly do bao cao <span class="text-red-500">*</span></p>
+              <p :class="labelClass">Lý do báo cáo <span class="text-red-500">*</span></p>
               <div class="grid grid-cols-2 gap-2">
                 <button
                   v-for="item in REPORT_CATEGORIES"
@@ -58,7 +58,7 @@
 
             <div class="flex flex-col gap-1.5">
               <label for="report-details" :class="labelClass">
-                Chi tiet them <span :class="hintClass">(tuy chon)</span>
+                Chi tiết thêm <span :class="hintClass">(tùy chọn)</span>
               </label>
               <textarea
                 id="report-details"
@@ -66,17 +66,17 @@
                 rows="3"
                 maxlength="500"
                 :class="textareaClass"
-                placeholder="Mo ta ngan gon van de ban phat hien..."
+                placeholder="Mô tả ngắn gọn vấn đề bạn phát hiện..."
               />
               <div :class="counterClass">{{ reason.length }}/500</div>
             </div>
 
-            <p v-if="status === 'error'" class="text-sm text-red-500">Co loi xay ra, vui long thu lai.</p>
+            <p v-if="status === 'error'" class="text-sm text-red-500">Có lỗi xảy ra, vui lòng thử lại.</p>
 
             <div class="flex justify-end gap-2 pt-1">
-              <button type="button" :class="cancelClass" @click="handleClose">Huy</button>
+              <button type="button" :class="cancelClass" @click="handleClose">Hủy</button>
               <button type="button" :disabled="!category || status === 'loading'" class="rounded-full bg-gray-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-600 disabled:cursor-not-allowed disabled:opacity-50" @click="submitReport">
-                {{ status === "loading" ? "Dang gui..." : "Gui bao cao" }}
+                {{ status === "loading" ? "Đang gửi..." : "Gửi báo cáo" }}
               </button>
             </div>
           </div>
@@ -93,12 +93,12 @@ const props = defineProps<{
 }>();
 
 const REPORT_CATEGORIES = [
-  { value: "incorrect_info", label: "Thong tin sai" },
-  { value: "spam", label: "Spam / Quang cao" },
-  { value: "harassment", label: "Quay roi" },
-  { value: "inappropriate", label: "Noi dung khong phu hop" },
-  { value: "copyright", label: "Ban quyen" },
-  { value: "other", label: "Ly do khac" },
+  { value: "incorrect_info", label: "Thông tin sai" },
+  { value: "spam", label: "Spam / Quảng cáo" },
+  { value: "harassment", label: "Quấy rối" },
+  { value: "inappropriate", label: "Nội dung không phù hợp" },
+  { value: "copyright", label: "Bản quyền" },
+  { value: "other", label: "Lý do khác" },
 ];
 
 const auth = useAuth();

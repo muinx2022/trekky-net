@@ -30,7 +30,7 @@ if (!tag.value) throw createError({ statusCode: 404, statusMessage: "Tag not fou
 const description = computed(() =>
   tag.value?.description
     ? truncate(stripHtml(tag.value.description), 160)
-    : `Bai viet duoc gan the #${tag.value?.name} tren ${SITE_NAME}.`,
+    : `Bài viết được gắn thẻ #${tag.value?.name} trên ${SITE_NAME}.`,
 );
 
 useSeoMeta({

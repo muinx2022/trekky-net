@@ -1,7 +1,7 @@
 <template>
   <Teleport to="body">
     <div class="fixed inset-0 z-[120] flex items-center justify-center bg-black/90 p-4" @click.self="emit('close')">
-      <button type="button" class="absolute right-4 top-4 text-white" aria-label="Dong" @click="emit('close')">
+      <button type="button" class="absolute right-4 top-4 text-white" aria-label="Đóng" @click="emit('close')">
         <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M18 6 6 18" />
           <path d="m6 6 12 12" />
@@ -12,7 +12,7 @@
         v-if="images.length > 1"
         type="button"
         class="absolute left-4 top-1/2 -translate-y-1/2 rounded-full bg-white/10 p-3 text-white hover:bg-white/20"
-        aria-label="Anh truoc"
+        aria-label="Ảnh trước"
         @click="navigate(-1)"
       >
         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
@@ -26,7 +26,7 @@
         v-if="images.length > 1"
         type="button"
         class="absolute right-4 top-1/2 -translate-y-1/2 rounded-full bg-white/10 p-3 text-white hover:bg-white/20"
-        aria-label="Anh tiep"
+        aria-label="Ảnh tiếp"
         @click="navigate(1)"
       >
         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">

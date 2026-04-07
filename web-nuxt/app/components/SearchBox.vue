@@ -10,7 +10,7 @@
       <input
         v-model="query"
         type="text"
-        placeholder="Tim kiem..."
+        placeholder="Tìm kiếm..."
         :class="inputClass"
         @keydown.enter.prevent="handleSubmit"
         @focus="hasSuggestions && (showDropdown = true)"
@@ -18,7 +18,7 @@
       <button
         type="button"
         class="mr-1 flex items-center gap-1 rounded-full bg-gray-500 px-3 py-1 text-xs font-medium text-white transition-colors hover:bg-gray-600"
-        aria-label="Tim kiem"
+        aria-label="Tìm kiếm"
         @click="handleSubmit"
       >
         <svg v-if="loading" class="animate-spin" xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
@@ -28,15 +28,15 @@
           <circle cx="11" cy="11" r="8" />
           <path d="m21 21-4.3-4.3" />
         </svg>
-        Tim
+        Tìm
       </button>
     </div>
 
     <div v-if="showDropdown" :class="dropdownClass">
-      <div v-if="!hasSuggestions" class="px-4 py-3 text-sm text-gray-400">Khong tim thay ket qua</div>
+      <div v-if="!hasSuggestions" class="px-4 py-3 text-sm text-gray-400">Không tìm thấy kết quả</div>
       <template v-else>
         <div v-if="suggestions.posts.length">
-          <div class="border-b border-gray-100 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-gray-400">Bai viet</div>
+          <div class="border-b border-gray-100 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-gray-400">Bài viết</div>
           <button
             v-for="(post, index) in suggestions.posts.slice(0, 4)"
             :key="`post-${post.documentId}-${index}`"
@@ -71,7 +71,7 @@
         </div>
 
         <div v-if="suggestions.categories.length" class="border-t border-gray-100">
-          <div class="px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-gray-400">Danh muc</div>
+          <div class="px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-gray-400">Danh mục</div>
           <button
             v-for="(category, index) in suggestions.categories.slice(0, 3)"
             :key="`category-${category.documentId}-${index}`"
@@ -96,7 +96,7 @@
               <circle cx="11" cy="11" r="8" />
               <path d="m21 21-4.3-4.3" />
             </svg>
-            Xem tat ca ket qua cho "{{ query }}"
+            Xem tất cả kết quả cho "{{ query }}"
           </button>
         </div>
       </template>

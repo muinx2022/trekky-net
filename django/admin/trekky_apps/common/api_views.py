@@ -37,8 +37,8 @@ from trekky_apps.content.serializers import (
 )
 from trekky_apps.engagement.models import Interaction, Report
 from trekky_apps.engagement.serializers import InteractionSerializer, ReportSerializer
-from trekky_apps.integrations.models import AIAutomationSettings, GA4AnalyticsSettings, GoogleOAuthSettings, MediaStorageSettings
-from trekky_apps.integrations.serializers import AIAutomationSettingsSerializer, GA4AnalyticsSettingsSerializer, GoogleOAuthSettingsSerializer, MediaStorageSettingsSerializer
+from trekky_apps.integrations.models import AIAutomationSettings, EmailAuthSettings, GA4AnalyticsSettings, GoogleOAuthSettings, MediaStorageSettings
+from trekky_apps.integrations.serializers import AIAutomationSettingsSerializer, EmailAuthSettingsSerializer, GA4AnalyticsSettingsSerializer, GoogleOAuthSettingsSerializer, MediaStorageSettingsSerializer
 from trekky_apps.moderation.models import ModerationAction, ModeratorCategoryAssignment
 from trekky_apps.moderation.serializers import ModerationActionSerializer, ModeratorCategoryAssignmentSerializer
 from trekky_apps.common import search_service
@@ -173,9 +173,14 @@ class MeView(APIView):
         return Response(UserSerializer(request.user).data)
 
     def put(self, request):
+        remove_avatar = str(request.data.get("removeAvatar") or request.data.get("remove_avatar") or "").lower() in {"1", "true", "yes"}
         serializer = ProfileUpdateSerializer(request.user, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         serializer.save()
+        if remove_avatar and request.user.avatar:
+            request.user.avatar.delete(save=False)
+            request.user.avatar = None
+            request.user.save(update_fields=["avatar"])
         return Response(UserSerializer(request.user).data)
 
 
@@ -517,12 +522,14 @@ class IntegrationSettingsView(APIView):
         ai = AIAutomationSettings.objects.order_by("-updated_at").first()
         media = MediaStorageSettings.objects.order_by("-updated_at").first()
         google_oauth = GoogleOAuthSettings.objects.order_by("-updated_at").first()
+        email_auth = EmailAuthSettings.objects.order_by("-updated_at").first()
         return Response(
             {
                 "ga4": GA4AnalyticsSettingsSerializer(ga4).data if ga4 else None,
                 "ai": AIAutomationSettingsSerializer(ai).data if ai else None,
                 "media": MediaStorageSettingsSerializer(media).data if media else None,
                 "google_oauth": GoogleOAuthSettingsSerializer(google_oauth).data if google_oauth else None,
+                "email_auth": EmailAuthSettingsSerializer(email_auth).data if email_auth else None,
             }
         )
 
@@ -725,9 +732,14 @@ class LegacyMeView(MeView):
         return Response(legacy_user_payload(request.user))
 
     def put(self, request):
+        remove_avatar = str(request.data.get("removeAvatar") or request.data.get("remove_avatar") or "").lower() in {"1", "true", "yes"}
         serializer = ProfileUpdateSerializer(request.user, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         serializer.save()
+        if remove_avatar and request.user.avatar:
+            request.user.avatar.delete(save=False)
+            request.user.avatar = None
+            request.user.save(update_fields=["avatar"])
         return Response(legacy_user_payload(request.user))
 
 

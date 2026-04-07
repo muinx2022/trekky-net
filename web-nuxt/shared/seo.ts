@@ -1,20 +1,20 @@
 import sanitizeHtml from "sanitize-html";
 
 export const SITE_NAME = "Trekky";
-export const SITE_TITLE = `${SITE_NAME} - Chia se dam me, trai nghiem va goc nhin rieng`;
+export const SITE_TITLE = `${SITE_NAME} - Chia sẻ đam mê, trải nghiệm và góc nhìn riêng`;
 export const SITE_DESCRIPTION =
-  "Trekky.net la noi chia se dam me, trai nghiem va goc nhin rieng, ket noi nhung nguoi song het minh va muon lan toa dieu tich cuc.";
+  "Trekky.net là nơi chia sẻ đam mê, trải nghiệm và góc nhìn riêng, kết nối những người sống hết mình và muốn lan tỏa điều tích cực.";
 export const SITE_KEYWORDS = [
   "Trekky",
-  "mang xa hoi chia se",
-  "cong dong",
-  "bai viet",
-  "trai nghiem",
-  "dam me",
-  "goc nhin rieng",
-  "ke chuyen that",
-  "du lich",
-  "kham pha",
+  "mạng xã hội chia sẻ",
+  "cộng đồng",
+  "bài viết",
+  "trải nghiệm",
+  "đam mê",
+  "góc nhìn riêng",
+  "kể chuyện thật",
+  "du lịch",
+  "khám phá",
 ];
 export const TWITTER_HANDLE = "@trekkynet";
 export const DEFAULT_OG_IMAGE = "/opengraph-image";

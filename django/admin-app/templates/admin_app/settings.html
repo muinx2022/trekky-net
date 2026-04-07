@@ -36,9 +36,9 @@
                 <span class="settings-tab-title">Media Storage</span>
                 <small>Cloudinary and Cloudflare R2</small>
               </button>
-              <button class="nav-link" id="settings-google-oauth-tab" data-bs-toggle="pill" data-bs-target="#settings-google-oauth" type="button" role="tab" aria-controls="settings-google-oauth" aria-selected="false">
-                <span class="settings-tab-title">Google OAuth</span>
-                <small>Client ID, secret and redirect URI</small>
+              <button class="nav-link" id="settings-auth-email-tab" data-bs-toggle="pill" data-bs-target="#settings-auth-email" type="button" role="tab" aria-controls="settings-auth-email" aria-selected="false">
+                <span class="settings-tab-title">Authentication &amp; Email</span>
+                <small>Google OAuth, SMTP and auth templates</small>
               </button>
             </div>
           </div>
@@ -85,8 +85,8 @@
                 </div>
                 <div class="col-12 col-md-6">
                   <div class="p-3 border rounded-2 h-100">
-                    <div class="fw-semibold mb-1">Google OAuth</div>
-                    <div class="text-secondary small">Client ID, Client Secret và Redirect URI để cho phép đăng nhập bằng tài khoản Google.</div>
+                    <div class="fw-semibold mb-1">Authentication &amp; Email</div>
+                    <div class="text-secondary small">Google OAuth, SMTP gửi mail, email chào mừng khi đăng ký và email quên mật khẩu được gom chung trong một nhóm cài đặt.</div>
                   </div>
                 </div>
               </div>
@@ -425,12 +425,13 @@
               </div>
             </div>
 
-            <div class="tab-pane fade" id="settings-google-oauth" role="tabpanel" aria-labelledby="settings-google-oauth-tab" tabindex="0">
+            <div class="tab-pane fade" id="settings-auth-email" role="tabpanel" aria-labelledby="settings-auth-email-tab" tabindex="0">
               <div class="settings-pane-head">
-                <h2>Google OAuth</h2>
-                <p>Configure Google OAuth credentials for social login. These values override environment variables.</p>
+                <h2>Authentication &amp; Email</h2>
+                <p>Configure Google OAuth, SMTP delivery, and the email templates used for registration and password reset.</p>
               </div>
-              <div class="settings-section">
+              <div class="settings-section mb-4">
+                <div class="settings-subhead">Google OAuth</div>
                 <div class="row g-3">
                   <div class="col-12">
                     <label class="form-label fw-semibold" for="{{ google_oauth_form.client_id.id_for_label }}">{{ google_oauth_form.client_id.label }}</label>
@@ -451,8 +452,117 @@
                   <div class="col-12">
                     <label class="form-label fw-semibold" for="{{ google_oauth_form.frontend_url.id_for_label }}">{{ google_oauth_form.frontend_url.label }}</label>
                     {{ google_oauth_form.frontend_url }}
-                    <div class="text-muted small mt-1">Frontend base URL for OAuth callback redirect (e.g. http://localhost:3000).</div>
+                    <div class="text-muted small mt-1">Frontend base URL for OAuth callback redirect (e.g. http://localhost:3001).</div>
                     {% if google_oauth_form.frontend_url.errors %}<div class="text-danger small mt-2">{{ google_oauth_form.frontend_url.errors|join:", " }}</div>{% endif %}
+                  </div>
+                </div>
+              </div>
+
+              <div class="settings-section mb-4">
+                <div class="settings-subhead">SMTP Delivery</div>
+                <div class="row g-3">
+                  <div class="col-12 col-xl-6">
+                    <label class="form-label fw-semibold" for="{{ email_auth_form.smtp_host.id_for_label }}">{{ email_auth_form.smtp_host.label }}</label>
+                    {{ email_auth_form.smtp_host }}
+                    {% if email_auth_form.smtp_host.errors %}<div class="text-danger small mt-2">{{ email_auth_form.smtp_host.errors|join:", " }}</div>{% endif %}
+                  </div>
+                  <div class="col-12 col-md-4 col-xl-2">
+                    <label class="form-label fw-semibold" for="{{ email_auth_form.smtp_port.id_for_label }}">{{ email_auth_form.smtp_port.label }}</label>
+                    {{ email_auth_form.smtp_port }}
+                    {% if email_auth_form.smtp_port.errors %}<div class="text-danger small mt-2">{{ email_auth_form.smtp_port.errors|join:", " }}</div>{% endif %}
+                  </div>
+                  <div class="col-12 col-md-4 col-xl-2">
+                    <label class="form-label fw-semibold" for="{{ email_auth_form.smtp_timeout.id_for_label }}">{{ email_auth_form.smtp_timeout.label }}</label>
+                    {{ email_auth_form.smtp_timeout }}
+                    {% if email_auth_form.smtp_timeout.errors %}<div class="text-danger small mt-2">{{ email_auth_form.smtp_timeout.errors|join:", " }}</div>{% endif %}
+                  </div>
+                  <div class="col-12 col-md-4 col-xl-2">
+                    <label class="form-label fw-semibold" for="{{ email_auth_form.from_name.id_for_label }}">{{ email_auth_form.from_name.label }}</label>
+                    {{ email_auth_form.from_name }}
+                    {% if email_auth_form.from_name.errors %}<div class="text-danger small mt-2">{{ email_auth_form.from_name.errors|join:", " }}</div>{% endif %}
+                  </div>
+                  <div class="col-12 col-xl-6">
+                    <label class="form-label fw-semibold" for="{{ email_auth_form.smtp_username.id_for_label }}">{{ email_auth_form.smtp_username.label }}</label>
+                    {{ email_auth_form.smtp_username }}
+                    {% if email_auth_form.smtp_username.errors %}<div class="text-danger small mt-2">{{ email_auth_form.smtp_username.errors|join:", " }}</div>{% endif %}
+                  </div>
+                  <div class="col-12 col-xl-6">
+                    <label class="form-label fw-semibold" for="{{ email_auth_form.smtp_password.id_for_label }}">{{ email_auth_form.smtp_password.label }}</label>
+                    {{ email_auth_form.smtp_password }}
+                    {% if email_auth_form.smtp_password.errors %}<div class="text-danger small mt-2">{{ email_auth_form.smtp_password.errors|join:", " }}</div>{% endif %}
+                  </div>
+                  <div class="col-12 col-lg-6">
+                    <label class="form-label fw-semibold" for="{{ email_auth_form.from_email.id_for_label }}">{{ email_auth_form.from_email.label }}</label>
+                    {{ email_auth_form.from_email }}
+                    {% if email_auth_form.from_email.errors %}<div class="text-danger small mt-2">{{ email_auth_form.from_email.errors|join:", " }}</div>{% endif %}
+                  </div>
+                  <div class="col-12 col-lg-6">
+                    <label class="form-label fw-semibold" for="{{ email_auth_form.reply_to.id_for_label }}">{{ email_auth_form.reply_to.label }}</label>
+                    {{ email_auth_form.reply_to }}
+                    {% if email_auth_form.reply_to.errors %}<div class="text-danger small mt-2">{{ email_auth_form.reply_to.errors|join:", " }}</div>{% endif %}
+                  </div>
+                  <div class="col-12 col-lg-6">
+                    <div class="form-check">
+                      {{ email_auth_form.smtp_use_tls }}
+                      <label class="form-check-label fw-semibold" for="{{ email_auth_form.smtp_use_tls.id_for_label }}">{{ email_auth_form.smtp_use_tls.label }}</label>
+                    </div>
+                    {% if email_auth_form.smtp_use_tls.errors %}<div class="text-danger small mt-2">{{ email_auth_form.smtp_use_tls.errors|join:", " }}</div>{% endif %}
+                  </div>
+                  <div class="col-12 col-lg-6">
+                    <div class="form-check">
+                      {{ email_auth_form.smtp_use_ssl }}
+                      <label class="form-check-label fw-semibold" for="{{ email_auth_form.smtp_use_ssl.id_for_label }}">{{ email_auth_form.smtp_use_ssl.label }}</label>
+                    </div>
+                    {% if email_auth_form.smtp_use_ssl.errors %}<div class="text-danger small mt-2">{{ email_auth_form.smtp_use_ssl.errors|join:", " }}</div>{% endif %}
+                  </div>
+                </div>
+              </div>
+
+              <div class="settings-section mb-4">
+                <div class="settings-subhead">Frontend Links</div>
+                <div class="row g-3">
+                  <div class="col-12">
+                    <label class="form-label fw-semibold" for="{{ email_auth_form.frontend_base_url.id_for_label }}">{{ email_auth_form.frontend_base_url.label }}</label>
+                    {{ email_auth_form.frontend_base_url }}
+                    {% if email_auth_form.frontend_base_url.errors %}<div class="text-danger small mt-2">{{ email_auth_form.frontend_base_url.errors|join:", " }}</div>{% endif %}
+                  </div>
+                  <div class="col-12 col-lg-6">
+                    <label class="form-label fw-semibold" for="{{ email_auth_form.login_path.id_for_label }}">{{ email_auth_form.login_path.label }}</label>
+                    {{ email_auth_form.login_path }}
+                    {% if email_auth_form.login_path.errors %}<div class="text-danger small mt-2">{{ email_auth_form.login_path.errors|join:", " }}</div>{% endif %}
+                  </div>
+                  <div class="col-12 col-lg-6">
+                    <label class="form-label fw-semibold" for="{{ email_auth_form.password_reset_path.id_for_label }}">{{ email_auth_form.password_reset_path.label }}</label>
+                    {{ email_auth_form.password_reset_path }}
+                    {% if email_auth_form.password_reset_path.errors %}<div class="text-danger small mt-2">{{ email_auth_form.password_reset_path.errors|join:", " }}</div>{% endif %}
+                  </div>
+                </div>
+              </div>
+
+              <div class="settings-section">
+                <div class="settings-subhead">Email Templates</div>
+                <div class="row g-3">
+                  <div class="col-12">
+                    <label class="form-label fw-semibold" for="{{ email_auth_form.registration_email_subject.id_for_label }}">{{ email_auth_form.registration_email_subject.label }}</label>
+                    {{ email_auth_form.registration_email_subject }}
+                    {% if email_auth_form.registration_email_subject.errors %}<div class="text-danger small mt-2">{{ email_auth_form.registration_email_subject.errors|join:", " }}</div>{% endif %}
+                  </div>
+                  <div class="col-12">
+                    <label class="form-label fw-semibold" for="{{ email_auth_form.registration_email_body.id_for_label }}">{{ email_auth_form.registration_email_body.label }}</label>
+                    {{ email_auth_form.registration_email_body }}
+                    <div class="text-muted small mt-1">{% templatetag openvariable %} username {% templatetag closevariable %}, {% templatetag openvariable %} email {% templatetag closevariable %}, {% templatetag openvariable %} login_url {% templatetag closevariable %}, {% templatetag openvariable %} site_name {% templatetag closevariable %}</div>
+                    {% if email_auth_form.registration_email_body.errors %}<div class="text-danger small mt-2">{{ email_auth_form.registration_email_body.errors|join:", " }}</div>{% endif %}
+                  </div>
+                  <div class="col-12">
+                    <label class="form-label fw-semibold" for="{{ email_auth_form.password_reset_email_subject.id_for_label }}">{{ email_auth_form.password_reset_email_subject.label }}</label>
+                    {{ email_auth_form.password_reset_email_subject }}
+                    {% if email_auth_form.password_reset_email_subject.errors %}<div class="text-danger small mt-2">{{ email_auth_form.password_reset_email_subject.errors|join:", " }}</div>{% endif %}
+                  </div>
+                  <div class="col-12">
+                    <label class="form-label fw-semibold" for="{{ email_auth_form.password_reset_email_body.id_for_label }}">{{ email_auth_form.password_reset_email_body.label }}</label>
+                    {{ email_auth_form.password_reset_email_body }}
+                    <div class="text-muted small mt-1">{% templatetag openvariable %} username {% templatetag closevariable %}, {% templatetag openvariable %} email {% templatetag closevariable %}, {% templatetag openvariable %} reset_url {% templatetag closevariable %}, {% templatetag openvariable %} site_url {% templatetag closevariable %}</div>
+                    {% if email_auth_form.password_reset_email_body.errors %}<div class="text-danger small mt-2">{{ email_auth_form.password_reset_email_body.errors|join:", " }}</div>{% endif %}
                   </div>
                 </div>
               </div>

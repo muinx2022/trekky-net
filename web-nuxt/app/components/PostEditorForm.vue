@@ -1,46 +1,66 @@
 <template>
   <div class="space-y-4">
-    <div v-if="!auth.isLoggedIn.value" class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-      <p class="text-sm text-slate-600">Ban can dang nhap de thao tac bai viet.</p>
-      <button class="mt-3 rounded-xl bg-sky-600 px-4 py-2 text-sm font-medium text-white hover:bg-sky-700" @click="auth.openLoginModal()">Dang nhap</button>
+    <div v-if="!auth.isLoggedIn.value" class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+      <p class="text-sm text-slate-600 dark:text-slate-300">Bạn cần đăng nhập để thao tác bài viết.</p>
+      <button class="mt-3 rounded-xl bg-sky-600 px-4 py-2 text-sm font-medium text-white hover:bg-sky-700" @click="auth.openLoginModal()">Đăng nhập</button>
     </div>
 
-    <form v-else class="rounded-lg border border-gray-200 bg-white" @submit.prevent="submit">
-      <p v-if="loadingPost" class="px-5 py-8 text-center text-sm text-gray-500">Dang tai bai viet...</p>
+    <form v-else class="overflow-hidden rounded-[1.75rem] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900" @submit.prevent="submit">
+      <p v-if="loadingPost" class="px-5 py-8 text-center text-sm text-gray-500 dark:text-slate-400">Đang tải bài viết...</p>
       <template v-else>
-      <div class="space-y-1 p-5 pb-0">
-        <label for="post-title" class="block text-sm font-medium text-gray-700">Tieu de</label>
+      <div class="border-b border-slate-200 bg-slate-50/80 px-5 py-5 dark:border-slate-700 dark:bg-slate-800/80 sm:px-6">
+        <div class="space-y-1">
+          <p class="text-xs font-semibold uppercase tracking-[0.24em] text-sky-700 dark:text-sky-300">{{ mode === 'create' ? 'Bản nháp mới' : 'Cập nhật bài viết' }}</p>
+          <h2 class="text-xl font-semibold text-slate-900 dark:text-slate-50">{{ mode === 'create' ? 'Thông tin bài viết' : 'Chỉnh sửa bài viết' }}</h2>
+          <p class="text-sm text-slate-600 dark:text-slate-300">Nhập tiêu đề, nội dung, danh mục và media của bài viết.</p>
+        </div>
+      </div>
+
+      <div class="space-y-1 px-5 pt-5 sm:px-6">
+        <label for="post-title" class="block text-sm font-medium text-gray-700">Tiêu đề bài viết</label>
         <input
           id="post-title"
           v-model="title"
-          required
-          class="w-full rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-800 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500"
+          maxlength="120"
+          :aria-invalid="fieldErrors.title ? 'true' : 'false'"
+          class="w-full rounded-2xl border px-4 py-3 text-sm text-gray-800 transition focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500"
+          :class="fieldErrors.title ? 'border-red-300 bg-red-50/70' : 'border-gray-200 bg-gray-50'"
         />
+        <div class="flex items-start justify-between gap-3 text-xs">
+          <p :class="fieldErrors.title ? 'text-red-600' : 'text-gray-500'">
+            {{ fieldErrors.title || 'Nên rõ chủ đề, địa điểm hoặc trải nghiệm chính của bài viết.' }}
+          </p>
+          <span class="shrink-0 text-gray-400">{{ title.trim().length }}/120</span>
+        </div>
       </div>
 
-      <div class="px-5 pt-4">
-        <nav class="flex gap-1 rounded-lg bg-gray-100 p-1">
-          <button type="button" class="flex-1 rounded-md px-4 py-1.5 text-sm font-semibold transition-all" :class="activeTab === 'content' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'" @click="activeTab = 'content'">
-            Noi dung
+      <div class="px-5 pt-4 sm:px-6">
+        <nav class="flex gap-1 rounded-2xl bg-gray-100 p-1">
+          <button type="button" class="flex-1 rounded-xl px-4 py-2 text-sm font-semibold transition-all" :class="activeTab === 'content' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'" @click="activeTab = 'content'">
+            Nội dung
           </button>
-          <button type="button" class="flex-1 rounded-md px-4 py-1.5 text-sm font-semibold transition-all" :class="activeTab === 'images' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'" @click="activeTab = 'images'">
+          <button type="button" class="flex-1 rounded-xl px-4 py-2 text-sm font-semibold transition-all" :class="activeTab === 'images' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'" @click="activeTab = 'images'">
             {{ totalMediaCount > 0 ? `Media (${totalMediaCount})` : "Media" }}
           </button>
         </nav>
       </div>
 
-      <div v-if="activeTab === 'content'" class="space-y-4 p-5">
+      <div v-if="activeTab === 'content'" class="space-y-5 p-5 sm:p-6">
         <fieldset class="space-y-1">
-          <legend class="block text-sm font-medium text-gray-700">Danh muc</legend>
-          <p v-if="loadingCategories" class="text-sm text-gray-500">Dang tai danh muc...</p>
+          <div class="flex items-center justify-between gap-3">
+            <legend class="block text-sm font-medium text-gray-700">Danh mục</legend>
+            <span class="text-xs text-gray-400">Chọn ít nhất 1 danh mục</span>
+          </div>
+          <p v-if="loadingCategories" class="text-sm text-gray-500">Đang tải danh mục...</p>
           <div v-else class="relative" ref="categoryMenuEl">
             <button
               type="button"
-              class="flex min-h-10 w-full items-center justify-between gap-2 rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-800"
+              class="flex min-h-12 w-full items-center justify-between gap-2 rounded-2xl border px-3 py-2 text-sm text-gray-800"
+              :class="fieldErrors.categories ? 'border-red-300 bg-red-50/70' : 'border-gray-200 bg-gray-50'"
               @click="categoryMenuOpen = !categoryMenuOpen"
             >
               <span class="flex flex-1 flex-wrap items-center gap-1 text-left">
-                <span v-if="selectedCategoryItems.length === 0" class="text-gray-500">Chon danh muc</span>
+                <span v-if="selectedCategoryItems.length === 0" class="text-gray-500">Chọn danh mục</span>
                 <span
                   v-for="item in selectedCategoryItems"
                   :key="item.value"
@@ -53,7 +73,7 @@
               <span class="text-xs text-gray-500">v</span>
             </button>
 
-            <div v-if="categoryMenuOpen" class="absolute z-30 mt-1 max-h-64 w-full overflow-y-auto rounded-md border border-gray-200 bg-white p-1 shadow-md">
+            <div v-if="categoryMenuOpen" class="absolute z-30 mt-1 max-h-64 w-full overflow-y-auto rounded-2xl border border-gray-200 bg-white p-1 shadow-md">
               <button
                 v-for="option in categoryTreeOptions"
                 :key="option.value"
@@ -65,9 +85,10 @@
                 <span>{{ option.label }}</span>
                 <span v-if="selectedCategories.includes(option.value)" class="text-xs">✓</span>
               </button>
-              <p v-if="categoryTreeOptions.length === 0" class="px-2 py-1.5 text-sm text-gray-500">Chua co danh muc</p>
+              <p v-if="categoryTreeOptions.length === 0" class="px-2 py-1.5 text-sm text-gray-500">Chưa có danh mục</p>
             </div>
           </div>
+          <p v-if="fieldErrors.categories" class="text-xs text-red-600">{{ fieldErrors.categories }}</p>
         </fieldset>
 
         <fieldset class="space-y-1">
@@ -77,22 +98,29 @@
 
         <div class="space-y-2">
           <div class="flex items-center justify-between">
-            <label class="block text-sm font-medium text-gray-700">Noi dung</label>
+            <label class="block text-sm font-medium text-gray-700">Nội dung</label>
             <button type="button" class="text-xs font-medium text-gray-500 hover:text-gray-700 hover:underline" @click="showToolbar = !showToolbar">
-              {{ showToolbar ? "An dinh dang" : "Hien thi dinh dang" }}
+              {{ showToolbar ? "Ẩn định dạng" : "Hiển thị định dạng" }}
             </button>
           </div>
-          <div class="rounded-md border border-gray-200 bg-gray-50 p-3">
+          <div class="space-y-2">
             <TiptapEditor v-model="content" :show-toolbar="showToolbar" @media-picked="handleMediaPicked" @media-error="(value) => (error = value ?? '')" />
+          </div>
+          <div class="flex items-start justify-between gap-3 text-xs">
+            <p v-if="fieldErrors.content" class="text-red-600">
+              {{ fieldErrors.content }}
+            </p>
+            <span v-else />
+            <span class="shrink-0 text-gray-400">{{ contentCharacterCount }} ký tự</span>
           </div>
         </div>
       </div>
 
-      <div v-if="activeTab === 'images'" class="space-y-4 p-5">
+      <div v-if="activeTab === 'images'" class="space-y-4 p-5 sm:p-6">
         <div class="flex items-center justify-between gap-3">
-          <p class="text-sm text-gray-500">Anh >1280px tu dong thu nho. Anh toi da 5MB, video toi da 200MB.</p>
+          <p class="text-sm text-gray-500">Ảnh >1280px tự động thu nhỏ. Ảnh tối đa 5MB, video tối đa 200MB.</p>
           <button type="button" class="rounded-md bg-gray-500 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-gray-600 disabled:opacity-60" :disabled="processingGallery" @click="openGalleryPicker">
-            {{ processingGallery ? "Dang xu ly..." : "+ Them media" }}
+            {{ processingGallery ? "Đang xử lý..." : "+ Thêm media" }}
           </button>
         </div>
 
@@ -106,7 +134,7 @@
           @click="openGalleryPicker"
         >
           <span class="text-3xl">+</span>
-          <span class="text-sm">Chon anh hoac video de tai len</span>
+          <span class="text-sm">Chọn ảnh hoặc video để tải lên</span>
         </button>
         <div v-else class="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-5">
           <div v-for="item in visibleExistingMedia" :key="item.id" class="group relative aspect-square overflow-hidden rounded-lg border border-gray-200 bg-gray-100">
@@ -131,15 +159,15 @@
         </div>
       </div>
 
-      <div class="space-y-3 px-5 pb-5 pt-2">
+      <div class="space-y-3 border-t border-slate-200 bg-slate-50/70 px-5 pb-5 pt-4 dark:border-slate-700 dark:bg-slate-800/70 sm:px-6">
         <p v-if="error" class="text-sm text-red-600">{{ error }}</p>
 
         <div class="flex gap-2">
-          <button type="button" class="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50" @click="router.push('/my-posts')">
-            Huy
+          <button type="button" class="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-700/70" @click="router.push('/my-posts')">
+            Hủy
           </button>
-          <button type="submit" class="rounded-md bg-gray-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-600 disabled:opacity-60" :disabled="pending || uploadingMedia || processingMedia">
-            {{ processingMedia ? "Dang xu ly video..." : uploadingMedia ? "Dang tai media..." : pending ? (mode === 'create' ? 'Dang tao...' : 'Dang luu...') : mode === 'create' ? 'Tao bai viet' : 'Luu thay doi' }}
+          <button type="submit" class="rounded-md bg-gray-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-600 disabled:opacity-60 dark:bg-sky-500 dark:text-slate-950 dark:hover:bg-sky-400" :disabled="pending || uploadingMedia || processingMedia">
+            {{ processingMedia ? "Đang xử lý video..." : uploadingMedia ? "Đang tải media..." : pending ? (mode === 'create' ? 'Đang tạo...' : 'Đang lưu...') : mode === 'create' ? 'Tạo bài viết' : 'Lưu thay đổi' }}
           </button>
         </div>
       </div>
@@ -191,11 +219,15 @@ const tagComboboxRef = ref<{ commitPending: () => Promise<void> } | null>(null);
 const pendingMediaMap: Record<string, File | undefined> = {};
 const pending = ref(false);
 const error = ref("");
+const fieldErrors = ref<{ title?: string; categories?: string; content?: string }>({});
 let categoryOutsideHandler: ((event: MouseEvent) => void) | null = null;
 
 const MAX_WIDTH = 1280;
 const MAX_IMAGE_SIZE = 5 * 1024 * 1024;
 const MAX_VIDEO_SIZE = 200 * 1024 * 1024;
+const MIN_TITLE_LENGTH = 8;
+const MAX_TITLE_LENGTH = 120;
+const MIN_CONTENT_LENGTH = 30;
 
 const categoryTreeOptions = computed(() => {
   const byParent: Record<string, CategoryOption[]> = {};
@@ -221,6 +253,18 @@ const categoryTreeOptions = computed(() => {
 const selectedCategoryItems = computed(() => categoryTreeOptions.value.filter((item) => selectedCategories.value.includes(item.value)));
 const visibleExistingMedia = computed(() => existingMedia.value.filter((item) => !removedMediaIds.value.has(item.id)));
 const totalMediaCount = computed(() => visibleExistingMedia.value.length + newMediaFiles.value.length);
+const contentPlainText = computed(() => content.value.replace(/<[^>]*>/g, " ").replace(/&nbsp;/g, " ").replace(/\s+/g, " ").trim());
+const contentCharacterCount = computed(() => contentPlainText.value.length);
+
+watch(title, () => {
+  if (fieldErrors.value.title) validateField("title");
+});
+watch(selectedCategories, () => {
+  if (fieldErrors.value.categories) validateField("categories");
+});
+watch(contentPlainText, () => {
+  if (fieldErrors.value.content) validateField("content");
+});
 
 watch(
   () => props.initialTitle,
@@ -374,8 +418,49 @@ async function handleFileSelect(event: Event) {
   }
 }
 
+function getTitleError() {
+  const trimmed = title.value.trim();
+  if (!trimmed) return "Vui lòng nhập tiêu đề bài viết.";
+  if (trimmed.length < MIN_TITLE_LENGTH) return `Tiêu đề cần ít nhất ${MIN_TITLE_LENGTH} ký tự.`;
+  if (trimmed.length > MAX_TITLE_LENGTH) return `Tiêu đề không được vượt quá ${MAX_TITLE_LENGTH} ký tự.`;
+  return "";
+}
+
+function getCategoriesError() {
+  if (selectedCategories.value.length === 0) return "Hãy chọn ít nhất một danh mục.";
+  return "";
+}
+
+function getContentError() {
+  if (!contentPlainText.value) return "Vui lòng nhập nội dung bài viết.";
+  if (contentCharacterCount.value < MIN_CONTENT_LENGTH) return `Nội dung cần ít nhất ${MIN_CONTENT_LENGTH} ký tự.`;
+  return "";
+}
+
+function validateField(field: "title" | "categories" | "content") {
+  const nextErrors = { ...fieldErrors.value };
+  if (field === "title") nextErrors.title = getTitleError() || undefined;
+  if (field === "categories") nextErrors.categories = getCategoriesError() || undefined;
+  if (field === "content") nextErrors.content = getContentError() || undefined;
+  fieldErrors.value = nextErrors;
+}
+
+function validateForm() {
+  fieldErrors.value = {
+    title: getTitleError() || undefined,
+    categories: getCategoriesError() || undefined,
+    content: getContentError() || undefined,
+  };
+  return !fieldErrors.value.title && !fieldErrors.value.categories && !fieldErrors.value.content;
+}
+
 async function submit() {
   await tagComboboxRef.value?.commitPending();
+  if (!validateForm()) {
+    error.value = "Vui lòng sửa các trường được đánh dấu trước khi lưu bài viết.";
+    activeTab.value = fieldErrors.value.content || fieldErrors.value.title || fieldErrors.value.categories ? "content" : activeTab.value;
+    return;
+  }
   pending.value = true;
   error.value = "";
   try {
@@ -385,7 +470,7 @@ async function submit() {
       const formData = new FormData();
       newMediaFiles.value.forEach((file) => formData.append("files", file, file.name));
       const uploadRes = await auth.authorizedFetch("/api/upload-proxy", { method: "POST", body: formData });
-      if (!uploadRes.ok) throw new Error("Tai media len that bai");
+      if (!uploadRes.ok) throw new Error("Tải media lên thất bại");
       const uploadPayload = (await uploadRes.json().catch(() => [])) as Array<{ id?: number }>;
       newUploadedIds = uploadPayload.map((item) => item.id).filter((id): id is number => typeof id === "number");
       uploadingMedia.value = false;
@@ -403,7 +488,7 @@ async function submit() {
         formData.append("files", named, named.name);
       }
       const uploadRes = await auth.authorizedFetch("/api/upload-proxy", { method: "POST", body: formData });
-      if (!uploadRes.ok) throw new Error("Tai media len that bai");
+      if (!uploadRes.ok) throw new Error("Tải media lên thất bại");
       const uploadPayload = (await uploadRes.json().catch(() => [])) as Array<{ url?: string }>;
       for (let index = 0; index < mediaEntries.length; index += 1) {
         const [blobUrl] = mediaEntries[index];
@@ -423,7 +508,7 @@ async function submit() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         ...(props.mode === "edit" ? { documentId: props.documentId } : {}),
-        title: title.value,
+        title: title.value.trim(),
         content: submittableContent,
         categories: selectedCategories.value,
         tags: selectedTags.value.map((tag) => tag.documentId),
@@ -432,10 +517,10 @@ async function submit() {
     });
 
     const body = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(body?.error || (props.mode === "create" ? "Tao bai viet that bai" : "Cap nhat bai viet that bai"));
+    if (!response.ok) throw new Error(body?.error || (props.mode === "create" ? "Tạo bài viết thất bại" : "Cập nhật bài viết thất bại"));
     await router.push("/my-posts");
   } catch (err) {
-    error.value = err instanceof Error ? err.message : props.mode === "create" ? "Tao bai viet that bai" : "Cap nhat bai viet that bai";
+    error.value = err instanceof Error ? err.message : props.mode === "create" ? "Tạo bài viết thất bại" : "Cập nhật bài viết thất bại";
   } finally {
     pending.value = false;
     uploadingMedia.value = false;

@@ -11,7 +11,7 @@
 
         <template v-if="allowMedia">
           <span class="mx-0.5 h-5 w-px bg-zinc-200" />
-          <button type="button" :class="buttonClass(false)" @click="openImageChooser">Anh</button>
+          <button type="button" :class="buttonClass(false)" @click="openImageChooser">Ảnh</button>
           <button type="button" :class="buttonClass(false)" @click="videoInputEl?.click()">Video</button>
           <button type="button" :class="buttonClass(youtubeOpen)" @click="youtubeOpen = !youtubeOpen">YouTube</button>
         </template>
@@ -27,10 +27,10 @@
           @keydown.esc="youtubeOpen = false; youtubeUrl = ''"
         />
         <button type="button" class="rounded bg-gray-500 px-2.5 py-1 text-xs font-medium text-white transition-colors hover:bg-gray-600" @click="handleYoutubeInsert">
-          Chen
+          Chèn
         </button>
         <button type="button" class="rounded px-2 py-1 text-xs text-zinc-500 transition-colors hover:bg-zinc-100" @click="youtubeOpen = false; youtubeUrl = ''">
-          Huy
+          Hủy
         </button>
       </div>
     </div>
@@ -40,30 +40,30 @@
     </div>
 
     <div v-if="allowMedia && imageModalOpen" class="fixed inset-0 z-[100] md:hidden">
-      <button type="button" class="absolute inset-0 bg-black/45" aria-label="Dong" @click="imageModalOpen = false" />
+      <button type="button" class="absolute inset-0 bg-black/45" aria-label="Đóng" @click="imageModalOpen = false" />
       <div class="absolute inset-x-0 bottom-0 rounded-t-2xl bg-white p-4 shadow-2xl">
         <div class="mb-3 flex items-center justify-between">
           <div>
-            <p class="text-sm font-semibold text-zinc-900">Chen anh</p>
-            <p class="text-xs text-zinc-500">Chon cach them anh vao noi dung</p>
+            <p class="text-sm font-semibold text-zinc-900">Chèn ảnh</p>
+            <p class="text-xs text-zinc-500">Chọn cách thêm ảnh vào nội dung</p>
           </div>
-          <button type="button" class="inline-flex h-9 w-9 items-center justify-center rounded-full text-zinc-500 hover:bg-zinc-100" aria-label="Dong" @click="imageModalOpen = false">×</button>
+          <button type="button" class="inline-flex h-9 w-9 items-center justify-center rounded-full text-zinc-500 hover:bg-zinc-100" aria-label="Đóng" @click="imageModalOpen = false">×</button>
         </div>
 
         <div class="grid gap-3">
           <button type="button" class="flex w-full items-center gap-3 rounded-xl border border-zinc-200 px-4 py-4 text-left hover:bg-zinc-50" @click="imageModalOpen = false; imageInputEl?.click()">
             <span class="inline-flex h-11 w-11 items-center justify-center rounded-full bg-zinc-100 text-zinc-700">Ả</span>
             <span>
-              <span class="block text-sm font-medium text-zinc-900">Chon tu thu vien</span>
-              <span class="block text-xs text-zinc-500">Mo anh co san tren thiet bi</span>
+              <span class="block text-sm font-medium text-zinc-900">Chọn từ thư viện</span>
+              <span class="block text-xs text-zinc-500">Mở ảnh có sẵn trên thiết bị</span>
             </span>
           </button>
 
           <button type="button" class="flex w-full items-center gap-3 rounded-xl border border-zinc-200 px-4 py-4 text-left hover:bg-zinc-50" @click="imageModalOpen = false; cameraInputEl?.click()">
             <span class="inline-flex h-11 w-11 items-center justify-center rounded-full bg-zinc-100 text-zinc-700">📷</span>
             <span>
-              <span class="block text-sm font-medium text-zinc-900">Dung may anh</span>
-              <span class="block text-xs text-zinc-500">Chup anh moi roi chen vao bai</span>
+              <span class="block text-sm font-medium text-zinc-900">Dùng máy ảnh</span>
+              <span class="block text-xs text-zinc-500">Chụp ảnh mới rồi chèn vào bài</span>
             </span>
           </button>
         </div>
@@ -200,12 +200,14 @@ const youtubeInputClass = computed(() =>
 const editorViewportClass = computed(() => {
   const sizeClass = props.compact ? "min-h-[120px] max-h-[200px]" : "h-[340px]";
   if (isCommentDark.value) {
-    return `${sizeClass} overflow-hidden rounded-[18px] border border-slate-700 bg-slate-950 px-4 py-3`;
+    return `${sizeClass} overflow-y-auto overflow-x-hidden rounded-[18px] border border-slate-700 bg-slate-950 px-4 py-3`;
   }
-  return `${sizeClass} overflow-hidden rounded-[18px] border border-zinc-200 bg-white px-4 py-3`;
+  return `${sizeClass} overflow-y-auto overflow-x-hidden rounded-[18px] border border-zinc-200 bg-white px-4 py-3`;
 });
 
-const editorClass = computed(() => (isCommentDark.value ? "tiptap-editor-root w-full text-sm text-slate-100" : "tiptap-editor-root w-full text-sm text-gray-800"));
+const editorClass = computed(() =>
+  isCommentDark.value ? "tiptap-editor-root h-full w-full text-sm text-slate-100" : "tiptap-editor-root h-full w-full text-sm text-gray-800",
+);
 
 function openImageChooser() {
   if (window.innerWidth >= 768) {
@@ -228,7 +230,7 @@ function handleImagePick(event: Event) {
   if (imageInputEl.value) imageInputEl.value.value = "";
   if (cameraInputEl.value) cameraInputEl.value.value = "";
   if (file.size > MAX_INLINE_IMAGE_SIZE) {
-    emit("mediaError", "Anh trong noi dung toi da 5MB");
+    emit("mediaError", "Ảnh trong nội dung tối đa 5MB");
     return;
   }
   imageModalOpen.value = false;
@@ -244,7 +246,7 @@ function handleVideoPick(event: Event) {
   if (!file || !editor.value) return;
   if (videoInputEl.value) videoInputEl.value.value = "";
   if (file.size > MAX_INLINE_VIDEO_SIZE) {
-    emit("mediaError", "Video trong noi dung toi da 200MB");
+    emit("mediaError", "Video trong nội dung tối đa 200MB");
     return;
   }
   emit("mediaError", null);
@@ -258,8 +260,10 @@ function handleVideoPick(event: Event) {
 <style scoped>
 :deep(.tiptap-editor-root .ProseMirror) {
   min-height: 100%;
+  height: 100%;
   outline: none;
   border-radius: 14px;
+  overflow-wrap: anywhere;
 }
 
 :deep(.tiptap-editor-root .ProseMirror p:first-child) {

@@ -8,6 +8,12 @@ type DjangoMe = {
   avatar?: { url?: string | null } | string | null;
 };
 
+type AuthResponse = {
+  access?: string;
+  refresh?: string;
+  message?: string;
+};
+
 const AUTH_STORAGE_KEY = "auth_user";
 const AUTH_COOKIE_KEY = "trekky-auth";
 
@@ -65,8 +71,29 @@ export function useAuth() {
     }
   }
 
+  async function hydrateFromTokens(payload: AuthResponse, rememberMe: boolean) {
+    if (!payload.access) return "Không thể xác thực tài khoản.";
+    const me = await fetchCurrentUser(payload.access);
+    if (!me) return "Không thể lấy thông tin tài khoản.";
+    const avatar = getAvatarFromMe(me);
+    user.value = {
+      id: me.id,
+      email: me.email,
+      username: me.username,
+      bio: me.bio ?? null,
+      avatarId: null,
+      avatarVersion: 0,
+      avatarUrl: toAbsoluteMediaUrl(avatar?.url),
+      jwt: payload.access,
+      refreshToken: payload.refresh,
+    };
+    persist(user.value, rememberMe);
+    isLoginModalOpen.value = false;
+    return null;
+  }
+
   async function login(email: string, password: string, rememberMe: boolean) {
-    if (!email || !password) return "Vui long nhap email va mat khau.";
+    if (!email || !password) return "Vui lòng nhập email và mật khẩu.";
     try {
       const response = await fetch(`${config.public.apiUrl}/api/v1/auth/token/`, {
         method: "POST",
@@ -75,35 +102,72 @@ export function useAuth() {
       });
       if (!response.ok) {
         const payload = await response.json().catch(() => ({}));
-        return payload?.detail || payload?.message || "Dang nhap that bai.";
+        return payload?.detail || payload?.message || "Đăng nhập thất bại.";
       }
-      const payload = (await response.json()) as { access?: string; refresh?: string };
-      if (!payload.access) return "Dang nhap that bai.";
-      const me = await fetchCurrentUser(payload.access);
-      if (!me) return "Khong the lay thong tin tai khoan.";
-      const avatar = getAvatarFromMe(me);
-      user.value = {
-        id: me.id,
-        email: me.email,
-        username: me.username,
-        bio: me.bio ?? null,
-        avatarId: null,
-        avatarVersion: 0,
-        avatarUrl: toAbsoluteMediaUrl(avatar?.url),
-        jwt: payload.access,
-        refreshToken: payload.refresh,
-      };
-      persist(user.value, rememberMe);
-      isLoginModalOpen.value = false;
+      return hydrateFromTokens((await response.json()) as AuthResponse, rememberMe);
+    } catch {
+      return "Không thể kết nối đến máy chủ.";
+    }
+  }
+
+  async function register(email: string, username: string, password: string, rememberMe: boolean) {
+    if (!email || !username || !password) return "Vui lòng điền đầy đủ thông tin đăng ký.";
+    try {
+      const response = await fetch(`${config.public.apiUrl}/api/v1/auth/register/`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, username, password }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        const firstError = extractFirstError(payload);
+        return firstError || payload?.detail || payload?.message || "Đăng ký thất bại.";
+      }
+      return hydrateFromTokens(payload as AuthResponse, rememberMe);
+    } catch {
+      return "Không thể kết nối đến máy chủ.";
+    }
+  }
+
+  async function requestPasswordReset(email: string) {
+    if (!email) return "Vui lòng nhập email để khôi phục mật khẩu.";
+    try {
+      const response = await fetch(`${config.public.apiUrl}/api/v1/auth/forgot-password/`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        return extractFirstError(payload) || payload?.detail || payload?.message || "Không thể gửi email khôi phục mật khẩu.";
+      }
       return null;
     } catch {
-      return "Khong the ket noi den may chu.";
+      return "Không thể kết nối đến máy chủ.";
+    }
+  }
+
+  async function resetPassword(uid: string, token: string, password: string) {
+    if (!uid || !token || !password) return "Liên kết đặt lại mật khẩu không hợp lệ.";
+    try {
+      const response = await fetch(`${config.public.apiUrl}/api/v1/auth/reset-password/`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ uid, token, password }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        return extractFirstError(payload) || payload?.detail || payload?.message || "Không thể đặt lại mật khẩu.";
+      }
+      return null;
+    } catch {
+      return "Không thể kết nối đến máy chủ.";
     }
   }
 
   async function loginWithToken(jwt: string, refreshToken?: string) {
     const me = await fetchCurrentUser(jwt);
-    if (!me) return "Khong the lay thong tin tai khoan.";
+    if (!me) return "Không thể lấy thông tin tài khoản.";
     const avatar = getAvatarFromMe(me);
     user.value = {
       id: me.id,
@@ -195,12 +259,13 @@ export function useAuth() {
     return response;
   }
 
-  async function updateProfile(input: { bio: string; avatarFile: File | null }) {
-    if (!user.value?.jwt) return "Ban chua dang nhap.";
+  async function updateProfile(input: { bio: string; avatarFile: File | null; removeAvatar?: boolean }) {
+    if (!user.value?.jwt) return "Bạn chưa đăng nhập.";
     try {
       const formData = new FormData();
       formData.append("bio", input.bio.trim());
       if (input.avatarFile) formData.append("avatar", input.avatarFile);
+      if (input.removeAvatar) formData.append("removeAvatar", "true");
       const response = await authorizedFetch("/api/profile-proxy", {
         method: "PUT",
         body: formData,
@@ -209,13 +274,13 @@ export function useAuth() {
         const payload = await response.json().catch(() => ({}));
         if (response.status === 401) {
           clearAuthState();
-          return "Phien dang nhap da het han.";
+          return "Phiên đăng nhập đã hết hạn.";
         }
-        return payload?.error || payload?.message || "Cap nhat ho so that bai.";
+        return payload?.error || payload?.message || "Cập nhật hồ sơ thất bại.";
       }
       const payload = (await response.json()) as Partial<DjangoMe>;
       const avatar = getAvatarFromMe(payload as DjangoMe);
-      const nextAvatarVersion = input.avatarFile ? Date.now() : user.value.avatarVersion ?? 0;
+      const nextAvatarVersion = input.avatarFile || input.removeAvatar ? Date.now() : user.value.avatarVersion ?? 0;
       user.value = {
         ...user.value,
         id: payload.id ?? user.value.id,
@@ -229,7 +294,7 @@ export function useAuth() {
       persist(user.value, remember);
       return null;
     } catch {
-      return "Khong the cap nhat ho so.";
+      return "Không thể cập nhật hồ sơ.";
     }
   }
 
@@ -283,12 +348,23 @@ export function useAuth() {
     closeLoginModal: () => (isLoginModalOpen.value = false),
     restore,
     login,
+    register,
+    requestPasswordReset,
+    resetPassword,
     loginWithToken,
     refreshSession,
     authorizedFetch,
     updateProfile,
     logout,
   };
+}
+
+function extractFirstError(payload: Record<string, unknown>) {
+  for (const value of Object.values(payload ?? {})) {
+    if (Array.isArray(value) && value.length && typeof value[0] === "string") return value[0];
+    if (typeof value === "string") return value;
+  }
+  return null;
 }
 
 function readInitialUser(raw: string | null | undefined) {

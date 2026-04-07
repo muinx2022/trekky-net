@@ -2,7 +2,7 @@ from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 from rest_framework_simplejwt.views import TokenBlacklistView, TokenObtainPairView, TokenRefreshView
 
-from trekky_apps.accounts.views import GoogleOAuthCallbackView, GoogleOAuthInitView
+from trekky_apps.accounts.views import ForgotPasswordView, GoogleOAuthCallbackView, GoogleOAuthInitView, RegisterView, ResetPasswordView
 
 from .api_views import (
     AdminCategoryViewSet,
@@ -93,6 +93,9 @@ urlpatterns = [
     path("auth/token/", TokenObtainPairView.as_view(), name="token_obtain_pair"),
     path("auth/token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
     path("auth/token/logout/", TokenBlacklistView.as_view(), name="token_blacklist"),
+    path("auth/register/", RegisterView.as_view(), name="auth-register"),
+    path("auth/forgot-password/", ForgotPasswordView.as_view(), name="auth-forgot-password"),
+    path("auth/reset-password/", ResetPasswordView.as_view(), name="auth-reset-password"),
     path("auth/google/", GoogleOAuthInitView.as_view(), name="google-oauth-init"),
     path("auth/google/callback/", GoogleOAuthCallbackView.as_view(), name="google-oauth-callback"),
     path("me/", MeView.as_view(), name="me"),

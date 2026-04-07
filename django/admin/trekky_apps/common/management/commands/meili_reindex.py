@@ -16,6 +16,14 @@ class Command(BaseCommand):
             ))
             return
 
+        self.stdout.write("Resetting search indexes...")
+        for index_uid in (search_service.INDEX_POSTS, search_service.INDEX_TAGS, search_service.INDEX_CATEGORIES):
+            try:
+                client.delete_index(index_uid)
+                self.stdout.write(f"  Deleted existing index: {index_uid}")
+            except Exception:
+                self.stdout.write(f"  Index not deleted (may not exist yet): {index_uid}")
+
         self.stdout.write("Setting up indexes...")
         search_service.setup_indexes(client)
 

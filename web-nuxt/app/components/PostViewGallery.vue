@@ -8,7 +8,7 @@
         controls
         playsinline
       />
-      <button v-else type="button" class="block w-full cursor-zoom-in" aria-label="Mo anh lon" @click="lightboxIndex = index">
+      <button v-else type="button" class="block w-full cursor-zoom-in" aria-label="Mở ảnh lớn" @click="lightboxIndex = index">
         <img :src="current.src" :alt="current.alt" class="max-h-[520px] w-full bg-gray-900 object-contain" draggable="false" />
       </button>
 
@@ -16,7 +16,7 @@
         <button
           type="button"
           class="absolute left-3 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-black/50 text-white transition-colors hover:bg-black/70"
-          aria-label="Anh truoc"
+          aria-label="Ảnh trước"
           @click="index = (index - 1 + images.length) % images.length"
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m15 18-6-6 6-6" /></svg>
@@ -24,7 +24,7 @@
         <button
           type="button"
           class="absolute right-3 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-black/50 text-white transition-colors hover:bg-black/70"
-          aria-label="Anh tiep"
+          aria-label="Ảnh tiếp"
           @click="index = (index + 1) % images.length"
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m9 18 6-6-6-6" /></svg>
@@ -36,7 +36,7 @@
         v-if="!images[index]?.mime?.startsWith('video/')"
         type="button"
         class="absolute bottom-3 right-3 flex h-8 w-8 items-center justify-center rounded-full bg-black/50 text-white transition-colors hover:bg-black/70"
-        aria-label="Phong to"
+        aria-label="Phóng to"
         @click="lightboxIndex = index"
       >
         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" /></svg>

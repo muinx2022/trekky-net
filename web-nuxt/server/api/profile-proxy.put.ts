@@ -20,6 +20,8 @@ export default eventHandler(async (event) => {
   const incoming = await readFormData(event);
   const formData = new FormData();
   formData.append("bio", String(incoming.get("bio") ?? "").trim());
+  const removeAvatar = String(incoming.get("removeAvatar") ?? "").toLowerCase() === "true";
+  if (removeAvatar) formData.append("removeAvatar", "true");
 
   const avatar = incoming.get("avatar");
   if (avatar instanceof File && avatar.size > 0) {

@@ -25,7 +25,7 @@ const props = withDefaults(
     title?: string;
   }>(),
   {
-    title: "Bai viet",
+    title: "Bài viết",
   },
 );
 

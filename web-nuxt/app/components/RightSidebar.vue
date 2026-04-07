@@ -1,7 +1,7 @@
 <template>
   <div class="flex h-full min-h-0 flex-col gap-4">
     <div v-if="categories.length > 0" class="rounded-lg border border-gray-200 bg-white shadow-sm">
-      <h3 class="border-b border-gray-100 px-4 py-3 text-sm font-semibold text-gray-800">Danh muc</h3>
+      <h3 class="border-b border-gray-100 px-4 py-3 text-sm font-semibold text-gray-800">Danh mục</h3>
       <nav class="flex flex-col gap-1 p-2">
         <NuxtLink
           to="/"
@@ -13,7 +13,7 @@
               <polyline points="9 22 9 12 15 12 15 22" />
             </svg>
           </span>
-          <span class="font-medium">Trang chu</span>
+          <span class="font-medium">Trang chủ</span>
         </NuxtLink>
 
         <NuxtLink
@@ -35,7 +35,7 @@
         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
         </svg>
-        Bai viet noi bat
+        Bài viết nổi bật
       </h3>
       <div class="flex flex-col gap-1 p-2">
         <NuxtLink
@@ -52,19 +52,19 @@
               {{ post.title }}
             </h4>
             <div class="mt-1 flex items-center gap-2 text-xs text-gray-400">
-              <span>{{ post.likesCount ?? 0 }} thich</span>
+              <span>{{ post.likesCount ?? 0 }} thích</span>
               <span>&middot;</span>
-              <span>{{ post.commentsCount ?? 0 }} binh luan</span>
+              <span>{{ post.commentsCount ?? 0 }} bình luận</span>
             </div>
           </div>
         </NuxtLink>
 
-        <div v-if="topPosts.length === 0" class="py-4 text-center text-sm text-gray-400">Chua co bai viet</div>
+        <div v-if="topPosts.length === 0" class="py-4 text-center text-sm text-gray-400">Chưa có bài viết</div>
       </div>
     </div>
 
     <div v-if="topTags.length > 0" class="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-      <h3 class="mb-3 text-sm font-semibold text-gray-800">Xu huong</h3>
+      <h3 class="mb-3 text-sm font-semibold text-gray-800">Xu hướng</h3>
       <div class="flex flex-wrap gap-1.5">
         <NuxtLink
           v-for="tag in topTags"

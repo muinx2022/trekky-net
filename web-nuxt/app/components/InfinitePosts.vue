@@ -3,7 +3,7 @@
     <PostCard v-for="post in posts" :key="post.documentId" :post="post" />
 
     <div v-if="posts.length === 0" class="rounded-2xl border border-dashed border-slate-300 px-4 py-10 text-center text-sm text-slate-500">
-      Khong co bai viet nao.
+      Không có bài viết nào.
     </div>
 
     <div v-if="canLoadMore" class="flex justify-center pt-2">
@@ -12,7 +12,7 @@
         :disabled="pending"
         @click="loadMore"
       >
-        {{ pending ? "Dang tai..." : "Xem them" }}
+        {{ pending ? "Đang tải..." : "Xem thêm" }}
       </button>
     </div>
   </div>

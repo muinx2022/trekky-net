@@ -333,6 +333,77 @@ export async function getFooterPages(): Promise<StrapiPage[]> {
   }
 }
 
+export async function getSidebarData(): Promise<{ topPosts: Post[]; topTags: Tag[] }> {
+  try {
+    const [postsPayload, commentsPayload] = await Promise.all([
+      djangoFetch<DRFList<DjangoPost> | DjangoPost[]>("/public/posts/?ordering=-published_at&page_size=1000", true),
+      djangoFetch<DRFList<DjangoComment> | DjangoComment[]>("/public/comments/?target_type=post&page_size=1000", true),
+    ]);
+
+    const posts = extractList(postsPayload)
+      .map(normalizePost)
+      .filter((post) => post.documentId && post.slug && post.status === "published");
+
+    const commentCounts = new Map<string, number>();
+    extractList(commentsPayload).forEach((comment) => {
+      if (!comment.target_document_id) return;
+      commentCounts.set(comment.target_document_id, (commentCounts.get(comment.target_document_id) ?? 0) + 1);
+    });
+
+    const now = Date.now();
+    const halfLifeDays = 30;
+    const rankedPosts = posts
+      .map((post) => {
+        const commentsCount = commentCounts.get(post.documentId) ?? 0;
+        const publishedAt = post.publishedAt ?? post.createdAt ?? null;
+        const ageMs = publishedAt ? Math.max(0, now - new Date(publishedAt).getTime()) : 0;
+        const ageDays = ageMs / (1000 * 60 * 60 * 24);
+        const decay = Math.pow(0.5, ageDays / halfLifeDays);
+        const score = commentsCount * decay;
+        return {
+          ...post,
+          commentsCount,
+          score,
+          sortDate: publishedAt ? new Date(publishedAt).getTime() : 0,
+        };
+      })
+      .sort((a, b) => {
+        if (b.score !== a.score) return b.score - a.score;
+        if ((b.commentsCount ?? 0) !== (a.commentsCount ?? 0)) return (b.commentsCount ?? 0) - (a.commentsCount ?? 0);
+        return b.sortDate - a.sortDate;
+      })
+      .slice(0, 5)
+      .map(({ score: _score, sortDate: _sortDate, ...post }) => post);
+
+    const tagStats = new Map<string, Tag>();
+    posts.forEach((post) => {
+      (post.tags ?? []).forEach((tag) => {
+        const existing = tagStats.get(tag.documentId);
+        if (existing) {
+          existing.postsCount = (existing.postsCount ?? 0) + 1;
+          return;
+        }
+        tagStats.set(tag.documentId, {
+          ...tag,
+          postsCount: 1,
+        });
+      });
+    });
+
+    const topTags = Array.from(tagStats.values())
+      .filter((tag) => tag.slug)
+      .sort((a, b) => {
+        if ((b.postsCount ?? 0) !== (a.postsCount ?? 0)) return (b.postsCount ?? 0) - (a.postsCount ?? 0);
+        return a.name.localeCompare(b.name, "vi");
+      })
+      .slice(0, 20);
+
+    return { topPosts: rankedPosts, topTags };
+  } catch {
+    return { topPosts: [], topTags: [] };
+  }
+}
+
 export async function getPostsForSitemap() {
   return getAllEntriesForSitemap("/public/posts/?ordering=-updated_at&page_size=1000");
 }

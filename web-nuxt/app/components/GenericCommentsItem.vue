@@ -32,11 +32,11 @@
           <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" :fill="liked ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="2">
             <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" />
           </svg>
-          Thich
+          Thích
         </button>
 
         <button type="button" class="text-xs font-medium text-gray-500 transition-colors hover:text-blue-600" @click="handleReplyToggle">
-          {{ replies.length > 0 ? `Tra loi (${replies.length})` : "Tra loi" }}
+          {{ replies.length > 0 ? `Trả lời (${replies.length})` : "Trả lời" }}
         </button>
       </div>
     </div>
@@ -59,7 +59,7 @@
 
     <div v-if="replyingTo === comment.documentId" :class="replyEditorWrapperClass">
       <div :class="replyEditorShellClass">
-        <p :class="replyHintClass">Tra loi {{ comment.authorName }}</p>
+        <p :class="replyHintClass">Trả lời {{ comment.authorName }}</p>
 
         <div :class="replyEditorFrameClass">
           <TiptapEditor v-model="replyHtml" :show-toolbar="showToolbar" compact :allow-media="false" :theme="editorTheme" />
@@ -69,12 +69,12 @@
 
         <div class="flex items-center justify-between">
           <button type="button" class="text-xs font-medium text-blue-600 transition-colors hover:text-blue-700" @click="showToolbar = !showToolbar">
-            {{ showToolbar ? "An dinh dang" : "Hien thi dinh dang" }}
+            {{ showToolbar ? "Ẩn định dạng" : "Hiển thị định dạng" }}
           </button>
 
           <div class="flex gap-2">
             <button type="button" :class="cancelButtonClass" @click="emit('reply-cancel')">
-              Huy
+              Hủy
             </button>
             <button
               type="button"
@@ -85,7 +85,7 @@
               <svg v-if="replying" class="animate-spin" xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M21 12a9 9 0 1 1-6.219-8.56" />
               </svg>
-              Gui
+              Gửi
             </button>
           </div>
         </div>
@@ -141,10 +141,10 @@ function formatRelativeCommentTime(dateStr: string) {
   const mins = Math.floor(diff / 60000);
   const hours = Math.floor(mins / 60);
   const days = Math.floor(hours / 24);
-  if (mins < 1) return "vua xong";
-  if (mins < 60) return `${mins} phut truoc`;
-  if (hours < 24) return `${hours} gio truoc`;
-  return `${days} ngay truoc`;
+  if (mins < 1) return "vừa xong";
+  if (mins < 60) return `${mins} phút trước`;
+  if (hours < 24) return `${hours} giờ trước`;
+  return `${days} ngày trước`;
 }
 
 function handleReplyToggle() {

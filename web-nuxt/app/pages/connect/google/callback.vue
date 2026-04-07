@@ -1,14 +1,14 @@
 <template>
   <div v-if="!accessToken && !errorParam" class="flex min-h-screen items-center justify-center">
     <div class="space-y-3 text-center">
-      <p class="font-medium text-red-500">Khong nhan duoc token tu Google.</p>
-      <button class="text-sm text-blue-600 hover:underline" @click="router.replace(resolveNextPath(nextParam))">Quay lai</button>
+      <p class="font-medium text-red-500">Không nhận được token từ Google.</p>
+      <button class="text-sm text-blue-600 hover:underline" @click="router.replace(resolveNextPath(nextParam))">Quay lại</button>
     </div>
   </div>
   <div v-else-if="error" class="flex min-h-screen items-center justify-center">
     <div class="space-y-3 text-center">
       <p class="font-medium text-red-500">{{ error }}</p>
-      <button class="text-sm text-blue-600 hover:underline" @click="router.replace(resolveNextPath(nextParam))">Quay lai</button>
+      <button class="text-sm text-blue-600 hover:underline" @click="router.replace(resolveNextPath(nextParam))">Quay lại</button>
     </div>
   </div>
   <div v-else class="flex min-h-screen items-center justify-center">
@@ -16,7 +16,7 @@
       <svg class="mx-auto animate-spin text-blue-600" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <path d="M21 12a9 9 0 1 1-6.219-8.56" />
       </svg>
-      <p class="text-sm text-zinc-500">Dang xu ly dang nhap...</p>
+      <p class="text-sm text-zinc-500">Đang xử lý đăng nhập...</p>
     </div>
   </div>
 </template>
@@ -39,7 +39,7 @@ function resolveNextPath(rawPath: string | null) {
 
 onMounted(() => {
   if (errorParam.value) {
-    error.value = `Dang nhap Google that bai: ${errorParam.value}`;
+    error.value = `Đăng nhập Google thất bại: ${errorParam.value}`;
     return;
   }
   if (!accessToken.value) return;

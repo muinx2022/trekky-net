@@ -7,7 +7,7 @@
       </div>
       <div>
         <h1 class="text-2xl font-bold text-slate-900">{{ username }}</h1>
-        <p class="mt-0.5 text-sm text-slate-500">{{ total }} bai viet</p>
+        <p class="mt-0.5 text-sm text-slate-500">{{ total }} bài viết</p>
       </div>
     </div>
 
@@ -29,6 +29,6 @@ const authorAvatarUrl = computed(() => posts.value[0]?.author?.avatar?.url ?? ""
 
 useSeoMeta({
   title: username,
-  description: `Xem cac bai viet cua ${username} tren ${SITE_NAME}.`,
+  description: `Xem các bài viết của ${username} trên ${SITE_NAME}.`,
 });
 </script>

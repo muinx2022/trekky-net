@@ -1,23 +1,23 @@
 <template>
   <div class="space-y-4">
     <section class="overflow-hidden rounded-2xl border border-slate-200 bg-white px-6 py-6 shadow-sm">
-      <h1 class="text-2xl font-bold text-slate-900 sm:text-3xl">{{ query ? "Ket qua tim kiem" : "Tim kiem" }}</h1>
+      <h1 class="text-2xl font-bold text-slate-900 sm:text-3xl">{{ query ? "Kết quả tìm kiếm" : "Tìm kiếm" }}</h1>
       <p v-if="query" class="mt-1 text-sm text-slate-600">
-        {{ totalResults > 0 ? `${totalResults} ket qua cho "${query}"` : `Khong tim thay ket qua nao cho "${query}"` }}
+        {{ totalResults > 0 ? `${totalResults} kết quả cho "${query}"` : `Không tìm thấy kết quả nào cho "${query}"` }}
       </p>
     </section>
 
     <div v-if="!query" class="rounded-2xl border border-slate-200 bg-white px-6 py-10 text-center shadow-sm">
-      <p class="text-slate-500">Nhap tu khoa vao o tim kiem de bat dau.</p>
+      <p class="text-slate-500">Nhập từ khóa vào ô tìm kiếm để bắt đầu.</p>
     </div>
 
     <div v-else-if="totalResults === 0" class="rounded-2xl border border-slate-200 bg-white px-6 py-10 text-center shadow-sm">
-      <p class="text-slate-500">Khong tim thay ket qua phu hop.</p>
+      <p class="text-slate-500">Không tìm thấy kết quả phù hợp.</p>
     </div>
 
     <section v-if="results.posts?.length" class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
       <div class="border-b border-slate-100 px-5 py-3">
-        <h2 class="text-sm font-semibold uppercase tracking-wide text-slate-500">Bai viet ({{ results.posts.length }})</h2>
+        <h2 class="text-sm font-semibold uppercase tracking-wide text-slate-500">Bài viết ({{ results.posts.length }})</h2>
       </div>
       <ul class="divide-y divide-slate-100">
         <li v-for="post in results.posts" :key="post.documentId">
@@ -44,7 +44,7 @@
 
     <section v-if="results.categories?.length" class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
       <div class="border-b border-slate-100 px-5 py-3">
-        <h2 class="text-sm font-semibold uppercase tracking-wide text-slate-500">Danh muc ({{ results.categories.length }})</h2>
+        <h2 class="text-sm font-semibold uppercase tracking-wide text-slate-500">Danh mục ({{ results.categories.length }})</h2>
       </div>
       <ul class="divide-y divide-slate-100">
         <li v-for="category in results.categories" :key="category.documentId">
@@ -79,8 +79,8 @@ function sanitize(html: string) {
 }
 
 useSeoMeta({
-  title: query.value ? `Tim kiem: ${query.value}` : "Tim kiem",
-  description: query.value ? `Ket qua tim kiem cho "${query.value}"` : "Tim kiem bai viet, tag va danh muc",
+  title: query.value ? `Tìm kiếm: ${query.value}` : "Tìm kiếm",
+  description: query.value ? `Kết quả tìm kiếm cho "${query.value}"` : "Tìm kiếm bài viết, tag và danh mục",
   robots: "noindex,nofollow",
 });
 </script>

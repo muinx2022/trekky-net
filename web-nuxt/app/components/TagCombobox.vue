@@ -7,7 +7,7 @@
         class="inline-flex items-center gap-1 rounded bg-gray-200 px-2 py-0.5 text-xs text-gray-800"
       >
         {{ tag.name }}
-        <button type="button" :aria-label="`Xoa tag ${tag.name}`" class="inline-flex h-4 w-4 items-center justify-center rounded hover:bg-gray-300" @click="removeTag(tag.documentId)">
+        <button type="button" :aria-label="`Xóa tag ${tag.name}`" class="inline-flex h-4 w-4 items-center justify-center rounded hover:bg-gray-300" @click="removeTag(tag.documentId)">
           ×
         </button>
       </span>
@@ -17,7 +17,7 @@
         v-model="query"
         type="text"
         class="min-w-[120px] flex-1 bg-transparent text-sm text-gray-800 outline-none placeholder:text-gray-400"
-        :placeholder="model.length === 0 ? 'Go de tim hoac tao tag...' : 'Them tag...'"
+        :placeholder="model.length === 0 ? 'Gõ để tìm hoặc tạo tag...' : 'Thêm tag...'"
         @focus="trimmedQuery && (open = true)"
         @blur="handleCommitCurrent"
         @keydown="handleKeyDown"
@@ -46,7 +46,7 @@
         :disabled="pendingCount > 0"
         @mousedown.prevent="createTagAndAdd(trimmedQuery)"
       >
-        <span class="font-medium">+ Tao tag</span>
+        <span class="font-medium">+ Tạo tag</span>
         <span class="truncate">"{{ trimmedQuery }}"</span>
       </button>
     </div>

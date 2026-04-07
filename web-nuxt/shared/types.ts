@@ -18,6 +18,7 @@ export type Tag = {
   name: string;
   slug: string;
   description?: string;
+  postsCount?: number;
 };
 
 export type TagOption = {

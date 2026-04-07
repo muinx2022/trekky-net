@@ -4,11 +4,11 @@
     <LoginModal />
 
     <div class="mobile-left-drawer md:hidden" :class="{ 'pointer-events-auto': drawer.drawerOpen.value === 'left' }">
-      <button type="button" class="mobile-left-overlay" :class="{ 'opacity-100': drawer.drawerOpen.value === 'left' }" aria-label="Dong menu" @click="drawer.closeDrawer()" />
+      <button type="button" class="mobile-left-overlay" :class="{ 'opacity-100': drawer.drawerOpen.value === 'left' }" aria-label="Đóng menu" @click="drawer.closeDrawer()" />
       <aside class="mobile-left-panel" :class="{ 'translate-x-0': drawer.drawerOpen.value === 'left' }">
         <div class="mb-3 flex items-center justify-between">
-          <h3 class="text-base font-semibold text-gray-800">Danh muc</h3>
-          <button type="button" class="rounded-md p-2 text-gray-500 hover:bg-gray-100" aria-label="Dong" @click="drawer.closeDrawer()">×</button>
+          <h3 class="text-base font-semibold text-gray-800">Danh mục</h3>
+          <button type="button" class="rounded-md p-2 text-gray-500 hover:bg-gray-100" aria-label="Đóng" @click="drawer.closeDrawer()">×</button>
         </div>
         <MobileDrawerAutoClose>
           <LeftSidebar :categories="categories" />
@@ -46,14 +46,13 @@ type CategoryPayload = {
 };
 
 const { data } = await useAsyncData("site-shell-data", async () => {
-  const [categoriesPayload, footerPayload, postsPayload, tagsPayload] = await Promise.all([
+  const [categoriesPayload, footerPayload, sidebarPayload] = await Promise.all([
     $fetch<
       | CategoryPayload[]
       | { results?: CategoryPayload[] }
     >("/api/categories"),
     $fetch<StrapiPage[]>("/api/internal/footer-pages"),
-    $fetch<{ data?: Post[] }>("/api/posts-proxy?page=1&pageSize=5"),
-    $fetch<{ data?: Tag[] }>("/api/tags-proxy"),
+    $fetch<{ topPosts?: Post[]; topTags?: Tag[] }>("/api/internal/sidebar-data"),
   ]);
 
   const categoryRows = Array.isArray(categoriesPayload) ? categoriesPayload : (categoriesPayload.results ?? []);
@@ -84,8 +83,8 @@ const { data } = await useAsyncData("site-shell-data", async () => {
   return {
     categories,
     footerPages: footerPayload ?? [],
-    topPosts: postsPayload.data ?? [],
-    topTags: (tagsPayload.data ?? []).filter((tag) => tag.slug),
+    topPosts: sidebarPayload.topPosts ?? [],
+    topTags: (sidebarPayload.topTags ?? []).filter((tag) => tag.slug),
   };
 });
 

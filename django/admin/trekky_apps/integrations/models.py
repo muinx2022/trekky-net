@@ -11,6 +11,36 @@ def default_anthropic_models():
     return ["claude-haiku-4-5", "claude-sonnet-4-6"]
 
 
+def default_registration_email_subject():
+    return "Chào mừng bạn đến với Trekky"
+
+
+def default_registration_email_body():
+    return (
+        "Xin chào {{ username|default:email }},\n\n"
+        "Tài khoản của bạn trên Trekky đã được tạo thành công.\n"
+        "Bạn có thể đăng nhập tại: {{ login_url }}\n\n"
+        "Trân trọng,\n"
+        "{{ site_name }}"
+    )
+
+
+def default_password_reset_email_subject():
+    return "Yêu cầu đặt lại mật khẩu Trekky"
+
+
+def default_password_reset_email_body():
+    return (
+        "Xin chào {{ username|default:email }},\n\n"
+        "Chúng tôi đã nhận được yêu cầu đặt lại mật khẩu cho tài khoản của bạn.\n"
+        "Vui lòng mở liên kết sau để đặt lại mật khẩu:\n"
+        "{{ reset_url }}\n\n"
+        "Nếu bạn không gửi yêu cầu này, bạn có thể bỏ qua email.\n\n"
+        "Trân trọng,\n"
+        "{{ site_name }}"
+    )
+
+
 class GA4AnalyticsSettings(TimeStampedModel):
     property_id = models.CharField(max_length=255, blank=True)
     measurement_id = models.CharField(max_length=255, blank=True)
@@ -124,6 +154,51 @@ class GoogleOAuthSettings(TimeStampedModel):
 
     def __str__(self):
         return "Google OAuth Settings"
+
+    @classmethod
+    def get_solo(cls):
+        instance, _ = cls.objects.get_or_create(pk=1)
+        return instance
+
+
+class EmailAuthSettings(TimeStampedModel):
+    smtp_host = models.CharField(max_length=255, blank=True)
+    smtp_port = models.PositiveIntegerField(default=587)
+    smtp_username = models.CharField(max_length=255, blank=True)
+    smtp_password = models.CharField(max_length=255, blank=True)
+    smtp_use_tls = models.BooleanField(default=True)
+    smtp_use_ssl = models.BooleanField(default=False)
+    smtp_timeout = models.PositiveIntegerField(default=30)
+
+    from_email = models.EmailField(blank=True)
+    from_name = models.CharField(max_length=255, blank=True, default="Trekky")
+    reply_to = models.EmailField(blank=True)
+
+    frontend_base_url = models.CharField(max_length=500, blank=True, default="http://localhost:3001")
+    login_path = models.CharField(max_length=255, blank=True, default="/")
+    password_reset_path = models.CharField(max_length=255, blank=True, default="/reset-password")
+
+    registration_email_subject = models.CharField(
+        max_length=255,
+        blank=True,
+        default=default_registration_email_subject,
+    )
+    registration_email_body = models.TextField(
+        blank=True,
+        default=default_registration_email_body,
+    )
+    password_reset_email_subject = models.CharField(
+        max_length=255,
+        blank=True,
+        default=default_password_reset_email_subject,
+    )
+    password_reset_email_body = models.TextField(
+        blank=True,
+        default=default_password_reset_email_body,
+    )
+
+    def __str__(self):
+        return "Email & Auth Settings"
 
     @classmethod
     def get_solo(cls):

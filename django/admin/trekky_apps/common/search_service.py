@@ -6,6 +6,7 @@ Falls back to DB queries if MeiliSearch is unavailable or not configured.
 import logging
 
 from django.conf import settings
+from django.db.models import Q
 
 logger = logging.getLogger(__name__)
 
@@ -169,11 +170,26 @@ def _db_fallback(q):
     from trekky_apps.taxonomy.models import Category, Tag
 
     posts = list(
-        Post.objects.filter(is_published=True, title__icontains=q)
+        Post.objects.filter(is_published=True)
+        .filter(
+            Q(title__icontains=q)
+            | Q(excerpt__icontains=q)
+            | Q(content__icontains=q)
+            | Q(author__username__icontains=q)
+            | Q(categories__name__icontains=q)
+            | Q(tags__name__icontains=q)
+        )
+        .distinct()
         .values("id", "document_id", "title", "slug", "excerpt")[:10]
     )
-    tags = list(Tag.objects.filter(name__icontains=q).values("id", "document_id", "name", "slug")[:5])
-    categories = list(Category.objects.filter(name__icontains=q).values("id", "document_id", "name", "slug")[:5])
+    tags = list(
+        Tag.objects.filter(Q(name__icontains=q) | Q(description__icontains=q) | Q(aliases__icontains=q))
+        .values("id", "document_id", "name", "slug", "description")[:5]
+    )
+    categories = list(
+        Category.objects.filter(Q(name__icontains=q) | Q(description__icontains=q))
+        .values("id", "document_id", "name", "slug", "description")[:5]
+    )
     return {"posts": posts, "tags": tags, "categories": categories}
 
 
@@ -188,16 +204,20 @@ def search(q, post_limit=10, tag_limit=5, category_limit=5):
 
     try:
         results = client.multi_search([
-            {"indexUid": INDEX_POSTS, "q": q, "limit": post_limit, "attributesToRetrieve": ["id", "document_id", "title", "slug", "excerpt"]},
-            {"indexUid": INDEX_TAGS, "q": q, "limit": tag_limit, "attributesToRetrieve": ["id", "document_id", "name", "slug"]},
-            {"indexUid": INDEX_CATEGORIES, "q": q, "limit": category_limit, "attributesToRetrieve": ["id", "document_id", "name", "slug"]},
+            {"indexUid": INDEX_POSTS, "q": q, "limit": post_limit, "attributesToRetrieve": ["id", "document_id", "documentId", "title", "slug", "excerpt"]},
+            {"indexUid": INDEX_TAGS, "q": q, "limit": tag_limit, "attributesToRetrieve": ["id", "document_id", "documentId", "name", "slug", "description"]},
+            {"indexUid": INDEX_CATEGORIES, "q": q, "limit": category_limit, "attributesToRetrieve": ["id", "document_id", "documentId", "name", "slug", "description"]},
         ])
         hits = results.get("results", [])
-        return {
+        payload = {
             "posts": hits[0].get("hits", []) if len(hits) > 0 else [],
             "tags": hits[1].get("hits", []) if len(hits) > 1 else [],
             "categories": hits[2].get("hits", []) if len(hits) > 2 else [],
         }
+        if not payload["posts"] and not payload["tags"] and not payload["categories"]:
+            logger.info("MeiliSearch: zero hits for query '%s', falling back to DB search", q)
+            return _db_fallback(q)
+        return payload
     except Exception as e:
         logger.warning("MeiliSearch: search failed, falling back to DB: %s", e)
         return _db_fallback(q)

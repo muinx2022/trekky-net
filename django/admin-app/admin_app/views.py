@@ -13,13 +13,13 @@ from django.views.generic import CreateView, DeleteView, DetailView, ListView, T
 import json
 import re
 
-from .forms import AISettingsForm, CategoryForm, CommentForm, GA4SettingsForm, GoogleOAuthSettingsForm, MediaStorageSettingsForm, ModeratorAssignmentForm, PageForm, PostForm, ReportForm, TagForm, UserForm
+from .forms import AISettingsForm, CategoryForm, CommentForm, EmailAuthSettingsForm, GA4SettingsForm, GoogleOAuthSettingsForm, MediaStorageSettingsForm, ModeratorAssignmentForm, PageForm, PostForm, ReportForm, TagForm, UserForm
 from trekky_apps.accounts.seed_users import DEFAULT_SEED_PASSWORD, build_seed_user_draft
 from trekky_apps.content.models import Comment, CommentStatus, Page, Post
 from trekky_apps.content.post_media_service import PostMediaSyncError, delete_post_with_media
 from trekky_apps.engagement.models import Report, ReportStatus
 from trekky_apps.integrations.ai_automation import run_comment_automation, run_content_automation
-from trekky_apps.integrations.models import AIAutomationSettings, GA4AnalyticsSettings, GoogleOAuthSettings, MediaStorageSettings
+from trekky_apps.integrations.models import AIAutomationSettings, EmailAuthSettings, GA4AnalyticsSettings, GoogleOAuthSettings, MediaStorageSettings
 from trekky_apps.moderation.models import ModerationAction, ModeratorCategoryAssignment
 from trekky_apps.taxonomy.models import Category, CategoryStatus, Tag
 
@@ -1072,12 +1072,14 @@ class SettingsView(AdminAppAccessMixin, TemplateView):
         ai = AIAutomationSettings.objects.order_by("-updated_at").first() or AIAutomationSettings()
         media = MediaStorageSettings.objects.order_by("-updated_at").first() or MediaStorageSettings()
         google_oauth = GoogleOAuthSettings.get_solo()
+        email_auth = EmailAuthSettings.get_solo()
         context["page_title"] = "Settings"
-        context["page_subtitle"] = "Manage GA4, AI automation, and OAuth settings."
+        context["page_subtitle"] = "Manage AI, media, authentication, and email delivery settings."
         context["ga4_form"] = kwargs.get("ga4_form") or GA4SettingsForm(instance=ga4, prefix="ga4")
         context["ai_form"] = kwargs.get("ai_form") or AISettingsForm(instance=ai, prefix="ai")
         context["media_form"] = kwargs.get("media_form") or MediaStorageSettingsForm(instance=media, prefix="media")
         context["google_oauth_form"] = kwargs.get("google_oauth_form") or GoogleOAuthSettingsForm(instance=google_oauth, prefix="google_oauth")
+        context["email_auth_form"] = kwargs.get("email_auth_form") or EmailAuthSettingsForm(instance=email_auth, prefix="email_auth")
         context["active_settings_tab"] = kwargs.get("active_settings_tab") or self.get_active_tab()
         return context
 
@@ -1086,17 +1088,20 @@ class SettingsView(AdminAppAccessMixin, TemplateView):
         ai = AIAutomationSettings.objects.order_by("-updated_at").first() or AIAutomationSettings()
         media = MediaStorageSettings.objects.order_by("-updated_at").first() or MediaStorageSettings()
         google_oauth = GoogleOAuthSettings.get_solo()
+        email_auth = EmailAuthSettings.get_solo()
         active_tab = self.get_active_tab()
         action = (request.POST.get("action") or "").strip()
         ga4_form = GA4SettingsForm(request.POST, instance=ga4, prefix="ga4")
         ai_form = AISettingsForm(request.POST, instance=ai, prefix="ai")
         media_form = MediaStorageSettingsForm(request.POST, instance=media, prefix="media")
         google_oauth_form = GoogleOAuthSettingsForm(request.POST, instance=google_oauth, prefix="google_oauth")
-        if ga4_form.is_valid() and ai_form.is_valid() and media_form.is_valid() and google_oauth_form.is_valid():
+        email_auth_form = EmailAuthSettingsForm(request.POST, instance=email_auth, prefix="email_auth")
+        if ga4_form.is_valid() and ai_form.is_valid() and media_form.is_valid() and google_oauth_form.is_valid() and email_auth_form.is_valid():
             ga4_form.save()
             ai_form.save()
             media_form.save()
             google_oauth_form.save()
+            email_auth_form.save()
             if action == "run_ai_content_test":
                 try:
                     result = run_content_automation()
@@ -1126,6 +1131,7 @@ class SettingsView(AdminAppAccessMixin, TemplateView):
                 ai_form=ai_form,
                 media_form=media_form,
                 google_oauth_form=google_oauth_form,
+                email_auth_form=email_auth_form,
                 active_settings_tab=active_tab,
             )
         )

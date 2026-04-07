@@ -1,7 +1,7 @@
 <template>
   <div class="space-y-6">
     <div v-if="successMsg" class="flex items-center gap-2 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
-      Da gui binh luan.
+      Đã gửi bình luận.
     </div>
 
     <div v-if="errorMsg" class="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
@@ -16,7 +16,7 @@
       @click="handleJoinClick"
     >
       <svg class="comment-join-icon" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>
-      <p :class="joinTextClass" class="comment-join-text">{{ auth.isLoggedIn.value ? "Nhan de tham gia thao luan..." : "Dang nhap de binh luan..." }}</p>
+      <p :class="joinTextClass" class="comment-join-text">{{ auth.isLoggedIn.value ? "Nhấn để tham gia thảo luận..." : "Đăng nhập để bình luận..." }}</p>
     </button>
 
     <div v-else :class="editorShellClass" class="comment-editor-shell">
@@ -26,12 +26,12 @@
 
       <div class="flex items-center justify-between">
         <button type="button" class="text-xs font-medium text-blue-600 transition-colors hover:text-blue-700" @click="showToolbar = !showToolbar">
-          {{ showToolbar ? "An dinh dang" : "Hien thi dinh dang" }}
+          {{ showToolbar ? "Ẩn định dạng" : "Hiển thị định dạng" }}
         </button>
 
         <div class="flex gap-2">
           <button type="button" :class="cancelButtonClass" @click="isJoined = false">
-            Huy
+            Hủy
           </button>
           <button
             type="button"
@@ -42,7 +42,7 @@
             <svg v-if="submitting" class="animate-spin" xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M21 12a9 9 0 1 1-6.219-8.56" />
             </svg>
-            Binh luan
+            Bình luận
           </button>
         </div>
       </div>
@@ -64,7 +64,7 @@
       />
 
       <div v-if="topLevelComments.length === 0" :class="emptyStateClass">
-        Chua co binh luan nao. Hay la nguoi dau tien!
+        Chưa có bình luận nào. Hãy là người đầu tiên!
       </div>
     </div>
   </div>
@@ -143,11 +143,11 @@ async function postComment(body: object) {
     });
     if (!response.ok) {
       const payload = await response.json().catch(() => ({}));
-      return { ok: false, error: payload?.error || "Gui binh luan that bai." };
+      return { ok: false, error: payload?.error || "Gửi bình luận thất bại." };
     }
     return { ok: true, data: (await response.json()).data as Comment };
   } catch {
-    return { ok: false, error: "Khong the ket noi. Vui long thu lai." };
+    return { ok: false, error: "Không thể kết nối. Vui lòng thử lại." };
   }
 }
 
@@ -177,14 +177,14 @@ async function handlePostComment() {
   });
   submitting.value = false;
   if (!result.ok || !result.data) {
-    errorMsg.value = result.error ?? "Loi khong xac dinh.";
+    errorMsg.value = result.error ?? "Lỗi không xác định.";
     return;
   }
   comments.value = [result.data, ...comments.value];
   isJoined.value = false;
   commentHtml.value = "";
   showToolbar.value = false;
-  successMsg.value = "Cam on ban da tham gia binh luan!";
+  successMsg.value = "Cảm ơn bạn đã tham gia bình luận!";
   window.setTimeout(() => {
     successMsg.value = "";
   }, 5000);
@@ -233,7 +233,7 @@ function handleReplyToggle(parentDocumentId: string) {
 async function handleReplySubmit(payload: { parentDocumentId: string; html: string; done: (error?: string) => void }) {
   if (!auth.user.value) {
     auth.openLoginModal();
-    payload.done("Vui long dang nhap.");
+    payload.done("Vui lòng đăng nhập.");
     return;
   }
   const result = await postComment({
@@ -245,7 +245,7 @@ async function handleReplySubmit(payload: { parentDocumentId: string; html: stri
     parent: payload.parentDocumentId,
   });
   if (!result.ok || !result.data) {
-    payload.done(result.error ?? "Khong the gui phan hoi.");
+    payload.done(result.error ?? "Không thể gửi phản hồi.");
     return;
   }
   comments.value = [...comments.value, { ...result.data, parent: { documentId: payload.parentDocumentId } }];
