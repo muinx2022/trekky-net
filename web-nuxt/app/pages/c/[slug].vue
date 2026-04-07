@@ -36,7 +36,7 @@
 </template>
 
 <script setup lang="ts">
-import { buildOgImages, SITE_NAME, stripHtml, truncate } from "~~/shared/seo";
+import { buildBreadcrumbSchema, buildCanonicalUrl, buildOgImages, SITE_NAME, stripHtml, truncate } from "~~/shared/seo";
 import type { Category, PaginatedResponse, Post } from "~~/shared/types";
 
 const route = useRoute();
@@ -51,10 +51,18 @@ const [{ data: categoryData }, { data: postsPayload }] = await Promise.all([
 const category = computed(() => categoryData.value);
 if (!category.value) throw createError({ statusCode: 404, statusMessage: "Category not found" });
 
+const posts = computed(() => postsPayload.value?.data ?? []);
+const total = computed(() => postsPayload.value?.meta?.pagination?.total ?? 0);
 const description = computed(() =>
-  category.value?.description
-    ? truncate(stripHtml(category.value.description), 160)
-    : `Bài viết trong danh mục ${category.value?.name} trên ${SITE_NAME}.`,
+  category.value?.description ? truncate(stripHtml(category.value.description), 160) : `Bài viết trong danh mục ${category.value?.name} trên ${SITE_NAME}.`,
+);
+const canonicalUrl = computed(() => buildCanonicalUrl(`/c/${slug}`, config.public.siteUrl));
+const ogImage = computed(() => buildOgImages(undefined, config.public.siteUrl, category.value.name)[0]);
+const breadcrumbSchema = computed(() =>
+  buildBreadcrumbSchema([
+    { name: SITE_NAME, item: buildCanonicalUrl("/", config.public.siteUrl) },
+    { name: category.value?.name ?? "Category", item: canonicalUrl.value },
+  ]),
 );
 
 useSeoMeta({
@@ -62,9 +70,29 @@ useSeoMeta({
   description: description.value,
   ogTitle: category.value.name,
   ogDescription: description.value,
-  ogImage: buildOgImages(undefined, config.public.siteUrl)[0].url,
+  ogUrl: canonicalUrl.value,
+  ogType: "website",
+  ogImage: ogImage.value.url,
+  ogImageAlt: ogImage.value.alt,
+  twitterCard: "summary_large_image",
+  twitterTitle: category.value.name,
+  twitterDescription: description.value,
+  twitterImage: ogImage.value.url,
 });
 
-const posts = computed(() => postsPayload.value?.data ?? []);
-const total = computed(() => postsPayload.value?.meta?.pagination?.total ?? 0);
+useHead({
+  link: [
+    {
+      rel: "canonical",
+      href: canonicalUrl.value,
+    },
+  ],
+  script: [
+    {
+      key: `category-schema-${category.value.documentId}`,
+      type: "application/ld+json",
+      innerHTML: JSON.stringify(breadcrumbSchema.value),
+    },
+  ],
+});
 </script>

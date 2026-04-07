@@ -5,7 +5,11 @@
 </template>
 
 <script setup lang="ts">
+import { buildOrganizationSchema, buildWebsiteSchema, SITE_DESCRIPTION, SITE_NAME, TWITTER_HANDLE, withSiteTitle } from "~~/shared/seo";
+
 const theme = useTheme();
+const route = useRoute();
+const runtimeConfig = useRuntimeConfig();
 const themeBootScript = `
 (() => {
   try {
@@ -21,14 +25,77 @@ const themeBootScript = `
 })();
 `;
 
+const globalSchemas = [
+  buildOrganizationSchema(runtimeConfig.public.siteUrl),
+  buildWebsiteSchema(runtimeConfig.public.siteUrl),
+];
+
 useHead({
+  htmlAttrs: {
+    lang: "vi",
+  },
+  titleTemplate: (titleChunk) => withSiteTitle(titleChunk),
+  link: [
+    {
+      rel: "icon",
+      type: "image/x-icon",
+      href: "/favicon.ico",
+    },
+  ],
+  meta: [
+    {
+      name: "viewport",
+      content: "width=device-width, initial-scale=1",
+    },
+    {
+      name: "description",
+      content: SITE_DESCRIPTION,
+    },
+    {
+      name: "application-name",
+      content: SITE_NAME,
+    },
+    {
+      name: "apple-mobile-web-app-title",
+      content: SITE_NAME,
+    },
+    {
+      name: "theme-color",
+      content: "#0369a1",
+    },
+    {
+      property: "og:site_name",
+      content: SITE_NAME,
+    },
+    {
+      property: "og:locale",
+      content: "vi_VN",
+    },
+    {
+      name: "twitter:site",
+      content: TWITTER_HANDLE,
+    },
+    {
+      name: "twitter:creator",
+      content: TWITTER_HANDLE,
+    },
+  ],
   script: [
     {
       key: "theme-boot",
       innerHTML: themeBootScript,
       tagPosition: "head",
     },
+    {
+      key: "site-schema",
+      type: "application/ld+json",
+      innerHTML: JSON.stringify(globalSchemas),
+      tagPosition: "head",
+    },
   ],
+  templateParams: {
+    routePath: route.path,
+  },
 });
 
 onMounted(() => {

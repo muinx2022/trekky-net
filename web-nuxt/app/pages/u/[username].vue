@@ -16,19 +16,42 @@
 </template>
 
 <script setup lang="ts">
-import { SITE_NAME } from "~~/shared/seo";
+import { buildCanonicalUrl, buildOgImages, SITE_NAME, toAbsoluteMediaUrl } from "~~/shared/seo";
 import type { PaginatedResponse, Post } from "~~/shared/types";
 
 const route = useRoute();
+const config = useRuntimeConfig();
 const username = route.params.username as string;
 
 const { data } = await useFetch<PaginatedResponse<Post>>(`/api/posts-proxy?page=1&pageSize=10&author=${encodeURIComponent(username)}`);
 const posts = computed(() => data.value?.data ?? []);
 const total = computed(() => data.value?.meta?.pagination?.total ?? 0);
-const authorAvatarUrl = computed(() => posts.value[0]?.author?.avatar?.url ?? "");
+const authorAvatarUrl = computed(() => toAbsoluteMediaUrl(posts.value[0]?.author?.avatar?.url, config.public.apiUrl) ?? "");
+const canonicalUrl = computed(() => buildCanonicalUrl(`/u/${encodeURIComponent(username)}`, config.public.siteUrl));
+const ogImage = computed(() => buildOgImages(authorAvatarUrl.value || undefined, config.public.siteUrl, username)[0]);
+const description = computed(() => `Xem các bài viết của ${username} trên ${SITE_NAME}.`);
 
 useSeoMeta({
   title: username,
-  description: `Xem các bài viết của ${username} trên ${SITE_NAME}.`,
+  description: description.value,
+  ogTitle: username,
+  ogDescription: description.value,
+  ogUrl: canonicalUrl.value,
+  ogType: "profile",
+  ogImage: ogImage.value.url,
+  ogImageAlt: ogImage.value.alt,
+  twitterCard: "summary_large_image",
+  twitterTitle: username,
+  twitterDescription: description.value,
+  twitterImage: ogImage.value.url,
+});
+
+useHead({
+  link: [
+    {
+      rel: "canonical",
+      href: canonicalUrl.value,
+    },
+  ],
 });
 </script>

@@ -17,7 +17,7 @@
         </div>
         <div class="flex items-center gap-1.5 text-sm text-slate-500">
           <NuxtLink :to="post.author?.username ? `/u/${post.author.username}` : '#'" class="font-medium text-slate-700 hover:text-slate-900">
-            {{ post.author?.username ?? "An danh" }}
+            {{ post.author?.username ?? "Ẩn danh" }}
           </NuxtLink>
           <span v-if="formattedDate">·</span>
           <span v-if="formattedDate">{{ formattedDate }}</span>
@@ -50,7 +50,7 @@
 
     <div class="px-6 pb-6 pt-5">
       <h2 class="mb-4 text-sm font-semibold text-slate-700">
-        Binh luan <span v-if="comments.length" class="font-normal text-slate-400">({{ comments.length }})</span>
+        Bình luận <span v-if="comments.length" class="font-normal text-slate-400">({{ comments.length }})</span>
       </h2>
       <GenericComments target-type="post" :target-document-id="post.documentId" :initial-comments="comments" />
     </div>
@@ -58,11 +58,20 @@
 </template>
 
 <script setup lang="ts">
-import { buildOgImages, extractFirstImageFromHtml, SITE_NAME, stripHtml, toAbsoluteMediaUrl, truncate } from "~~/shared/seo";
+import {
+  buildArticleSchema,
+  buildBreadcrumbSchema,
+  buildCanonicalUrl,
+  buildOgImages,
+  extractFirstImageFromHtml,
+  SITE_NAME,
+  stripHtml,
+  toAbsoluteMediaUrl,
+  truncate,
+} from "~~/shared/seo";
 import type { Comment, Post } from "~~/shared/types";
 
 const route = useRoute();
-const router = useRouter();
 const config = useRuntimeConfig();
 const id = route.params.id as string;
 
@@ -75,8 +84,8 @@ const post = computed(() => postData.value);
 if (!post.value) throw createError({ statusCode: 404, statusMessage: "Post not found" });
 
 const canonicalId = `${post.value.slug}--${post.value.documentId}`;
-if (id !== canonicalId && import.meta.client) {
-  router.replace(`/p/${canonicalId}`);
+if (id !== canonicalId) {
+  await navigateTo(`/p/${canonicalId}`, { redirectCode: 301, replace: true });
 }
 
 const comments = computed(() => commentsData.value ?? []);
@@ -90,6 +99,25 @@ const description = computed(() => truncate(stripHtml(post.value?.content ?? "")
 const imageUrl = computed(
   () => toAbsoluteMediaUrl(post.value?.images?.[0]?.url, config.public.apiUrl) ?? extractFirstImageFromHtml(post.value?.content ?? "", config.public.apiUrl),
 );
+const canonicalUrl = computed(() => buildCanonicalUrl(`/p/${canonicalId}`, config.public.siteUrl));
+const ogImage = computed(() => buildOgImages(imageUrl.value, config.public.siteUrl, post.value.title)[0]);
+const articleSchema = computed(() =>
+  buildArticleSchema({
+    title: post.value.title,
+    description: description.value,
+    canonicalUrl: canonicalUrl.value,
+    image: ogImage.value.url,
+    publishedTime: post.value.publishedAt ?? post.value.createdAt ?? null,
+    modifiedTime: post.value.updatedAt ?? post.value.publishedAt ?? post.value.createdAt ?? null,
+    authorName: post.value.author?.username ?? null,
+  }),
+);
+const breadcrumbSchema = computed(() =>
+  buildBreadcrumbSchema([
+    { name: SITE_NAME, item: buildCanonicalUrl("/", config.public.siteUrl) },
+    { name: post.value.title, item: canonicalUrl.value },
+  ]),
+);
 
 useSeoMeta({
   title: post.value.title,
@@ -98,6 +126,31 @@ useSeoMeta({
   ogDescription: description.value,
   ogType: "article",
   ogSiteName: SITE_NAME,
-  ogImage: buildOgImages(imageUrl.value, config.public.siteUrl, post.value.title)[0].url,
+  ogUrl: canonicalUrl.value,
+  ogImage: ogImage.value.url,
+  ogImageAlt: ogImage.value.alt,
+  twitterCard: "summary_large_image",
+  twitterTitle: post.value.title,
+  twitterDescription: description.value,
+  twitterImage: ogImage.value.url,
+  articlePublishedTime: post.value.publishedAt ?? post.value.createdAt,
+  articleModifiedTime: post.value.updatedAt ?? post.value.publishedAt ?? post.value.createdAt,
+  articleAuthor: post.value.author?.username ?? SITE_NAME,
+});
+
+useHead({
+  link: [
+    {
+      rel: "canonical",
+      href: canonicalUrl.value,
+    },
+  ],
+  script: [
+    {
+      key: `post-schema-${post.value.documentId}`,
+      type: "application/ld+json",
+      innerHTML: JSON.stringify([articleSchema.value, breadcrumbSchema.value]),
+    },
+  ],
 });
 </script>

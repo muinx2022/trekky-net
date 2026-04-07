@@ -19,8 +19,26 @@ export const SITE_KEYWORDS = [
 export const TWITTER_HANDLE = "@trekkynet";
 export const DEFAULT_OG_IMAGE = "/opengraph-image";
 
+export type JsonLd = Record<string, unknown>;
+
 export function absoluteUrl(path: string, siteUrl: string) {
   return new URL(path, siteUrl).toString();
+}
+
+export function normalizeSiteUrl(siteUrl: string) {
+  return siteUrl.endsWith("/") ? siteUrl.slice(0, -1) : siteUrl;
+}
+
+export function buildCanonicalUrl(path: string, siteUrl: string) {
+  const normalizedSiteUrl = normalizeSiteUrl(siteUrl);
+  if (!path || path === "/") return `${normalizedSiteUrl}/`;
+  return absoluteUrl(path.startsWith("/") ? path : `/${path}`, normalizedSiteUrl);
+}
+
+export function withSiteTitle(title?: string | null) {
+  if (!title) return SITE_NAME;
+  if (title === SITE_TITLE || title.includes(SITE_NAME)) return title;
+  return `${title} | ${SITE_NAME}`;
 }
 
 export function toAbsoluteMediaUrl(url?: string | null, apiUrl?: string): string | undefined {
@@ -147,4 +165,80 @@ export function extractFirstImageFromHtml(html: string, apiUrl: string): string 
 export function buildOgImages(imageUrl: string | null | undefined, siteUrl: string, alt?: string | null) {
   const resolvedUrl = imageUrl ?? absoluteUrl(DEFAULT_OG_IMAGE, siteUrl);
   return [{ url: resolvedUrl, width: 1200, height: 630, alt: alt ?? SITE_NAME }];
+}
+
+export function buildOrganizationSchema(siteUrl: string): JsonLd {
+  return {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    name: SITE_NAME,
+    url: normalizeSiteUrl(siteUrl),
+    logo: absoluteUrl("/favicon.ico", siteUrl),
+    sameAs: [normalizeSiteUrl(siteUrl)],
+  };
+}
+
+export function buildWebsiteSchema(siteUrl: string): JsonLd {
+  return {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    name: SITE_NAME,
+    url: normalizeSiteUrl(siteUrl),
+    description: SITE_DESCRIPTION,
+    potentialAction: {
+      "@type": "SearchAction",
+      target: `${normalizeSiteUrl(siteUrl)}/search?q={search_term_string}`,
+      "query-input": "required name=search_term_string",
+    },
+  };
+}
+
+export function buildBreadcrumbSchema(items: Array<{ name: string; item: string }>): JsonLd {
+  return {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: items.map((entry, index) => ({
+      "@type": "ListItem",
+      position: index + 1,
+      name: entry.name,
+      item: entry.item,
+    })),
+  };
+}
+
+type ArticleSchemaInput = {
+  title: string;
+  description: string;
+  canonicalUrl: string;
+  image?: string | null;
+  publishedTime?: string | null;
+  modifiedTime?: string | null;
+  authorName?: string | null;
+};
+
+export function buildArticleSchema(input: ArticleSchemaInput): JsonLd {
+  return {
+    "@context": "https://schema.org",
+    "@type": "Article",
+    headline: input.title,
+    description: input.description,
+    mainEntityOfPage: input.canonicalUrl,
+    image: input.image ? [input.image] : undefined,
+    datePublished: input.publishedTime ?? undefined,
+    dateModified: input.modifiedTime ?? input.publishedTime ?? undefined,
+    author: input.authorName
+      ? {
+          "@type": "Person",
+          name: input.authorName,
+        }
+      : undefined,
+    publisher: {
+      "@type": "Organization",
+      name: SITE_NAME,
+      logo: {
+        "@type": "ImageObject",
+        url: absoluteUrl("/favicon.ico", input.canonicalUrl),
+      },
+    },
+  };
 }

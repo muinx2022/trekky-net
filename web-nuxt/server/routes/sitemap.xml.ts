@@ -11,16 +11,28 @@ export default eventHandler(async (event) => {
   ]);
 
   const urls = [
-    `${siteUrl}/`,
-    ...posts.map((item) => `${siteUrl}/p/${item.slug}--${item.documentId}`),
-    ...categories.map((item) => `${siteUrl}/c/${item.slug}`),
-    ...tags.map((item) => `${siteUrl}/t/${item.slug}`),
-    ...pages.map((item) => `${siteUrl}/page/${item.slug}`),
+    { loc: `${siteUrl}/` },
+    ...posts.map((item) => ({
+      loc: `${siteUrl}/p/${item.slug}--${item.documentId}`,
+      lastmod: item.updatedAt || undefined,
+    })),
+    ...categories.map((item) => ({
+      loc: `${siteUrl}/c/${item.slug}`,
+      lastmod: item.updatedAt || undefined,
+    })),
+    ...tags.map((item) => ({
+      loc: `${siteUrl}/t/${item.slug}`,
+      lastmod: item.updatedAt || undefined,
+    })),
+    ...pages.map((item) => ({
+      loc: `${siteUrl}/page/${item.slug}`,
+      lastmod: item.updatedAt || undefined,
+    })),
   ];
 
   setHeader(event, "content-type", "application/xml; charset=utf-8");
   return `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-${urls.map((url) => `  <url><loc>${url}</loc></url>`).join("\n")}
+${urls.map((url) => `  <url><loc>${url.loc}</loc>${url.lastmod ? `<lastmod>${new Date(url.lastmod).toISOString()}</lastmod>` : ""}</url>`).join("\n")}
 </urlset>`;
 });

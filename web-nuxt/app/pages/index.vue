@@ -24,10 +24,12 @@
 </template>
 
 <script setup lang="ts">
-import { SITE_DESCRIPTION, SITE_KEYWORDS, SITE_NAME, SITE_TITLE } from "~~/shared/seo";
+import { buildCanonicalUrl, buildOgImages, SITE_DESCRIPTION, SITE_KEYWORDS, SITE_NAME, SITE_TITLE } from "~~/shared/seo";
 import type { PaginatedResponse, Post, StrapiPage } from "~~/shared/types";
 
 const runtimeConfig = useRuntimeConfig();
+const canonicalUrl = buildCanonicalUrl("/", runtimeConfig.public.siteUrl);
+const ogImage = buildOgImages(undefined, runtimeConfig.public.siteUrl, SITE_NAME)[0];
 
 const [{ data: postsPayload }, { data: homePage }] = await Promise.all([
   useFetch<PaginatedResponse<Post>>("/api/posts-proxy?page=1&pageSize=10"),
@@ -45,7 +47,21 @@ useSeoMeta({
   keywords: SITE_KEYWORDS.join(", "),
   ogType: "website",
   ogSiteName: SITE_NAME,
-  ogUrl: runtimeConfig.public.siteUrl,
+  ogUrl: canonicalUrl,
+  ogImage: ogImage.url,
+  ogImageAlt: ogImage.alt,
   twitterCard: "summary_large_image",
+  twitterTitle: SITE_TITLE,
+  twitterDescription: SITE_DESCRIPTION,
+  twitterImage: ogImage.url,
+});
+
+useHead({
+  link: [
+    {
+      rel: "canonical",
+      href: canonicalUrl,
+    },
+  ],
 });
 </script>

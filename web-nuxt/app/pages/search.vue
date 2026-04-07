@@ -59,7 +59,7 @@
 </template>
 
 <script setup lang="ts">
-import { sanitizeRichHtml } from "~~/shared/seo";
+import { buildCanonicalUrl, sanitizeRichHtml } from "~~/shared/seo";
 
 type SearchResults = {
   posts: Array<{ documentId: string; title: string; slug: string; excerpt?: string }>;
@@ -73,6 +73,9 @@ const query = computed(() => (typeof route.query.q === "string" ? route.query.q.
 const { data: resultsData } = await useFetch<SearchResults>(() => (query.value ? `/api/search-proxy?q=${encodeURIComponent(query.value)}` : "/api/search-proxy"));
 const results = computed(() => resultsData.value ?? { posts: [], tags: [], categories: [] });
 const totalResults = computed(() => (results.value.posts?.length ?? 0) + (results.value.tags?.length ?? 0) + (results.value.categories?.length ?? 0));
+const canonicalUrl = computed(() =>
+  query.value ? buildCanonicalUrl(`/search?q=${encodeURIComponent(query.value)}`, config.public.siteUrl) : buildCanonicalUrl("/search", config.public.siteUrl),
+);
 
 function sanitize(html: string) {
   return sanitizeRichHtml(html, config.public.apiUrl);
@@ -82,5 +85,14 @@ useSeoMeta({
   title: query.value ? `Tìm kiếm: ${query.value}` : "Tìm kiếm",
   description: query.value ? `Kết quả tìm kiếm cho "${query.value}"` : "Tìm kiếm bài viết, tag và danh mục",
   robots: "noindex,nofollow",
+});
+
+useHead({
+  link: [
+    {
+      rel: "canonical",
+      href: canonicalUrl.value,
+    },
+  ],
 });
 </script>
