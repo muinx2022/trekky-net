@@ -7,6 +7,7 @@ from django.utils.encoding import force_bytes
 from django.utils.http import urlsafe_base64_encode
 from rest_framework.test import APIClient
 
+from trekky_apps.accounts.views import _resolve_frontend_url
 from trekky_apps.integrations.models import EmailAuthSettings
 
 
@@ -67,3 +68,14 @@ class AuthApiTests(TestCase):
         self.assertEqual(response.status_code, 200)
         user.refresh_from_db()
         self.assertTrue(user.check_password("NewPass123!"))
+
+
+@override_settings(MOBILE_FRONTEND_SCHEMES=["trekky"])
+class GoogleOAuthMobileTests(TestCase):
+    def test_mobile_frontend_scheme_is_allowed(self):
+        resolved = _resolve_frontend_url("trekky://auth", "http://localhost:3001")
+        self.assertEqual(resolved, "trekky://auth")
+
+    def test_unknown_custom_scheme_falls_back_to_web_url(self):
+        resolved = _resolve_frontend_url("unknown://auth", "http://localhost:3001")
+        self.assertEqual(resolved, "http://localhost:3001")

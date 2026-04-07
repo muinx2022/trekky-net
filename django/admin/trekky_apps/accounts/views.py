@@ -49,6 +49,14 @@ def _resolve_frontend_url(raw_url: str | None, fallback_url: str) -> str:
         return fallback_url
 
     if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+        allowed_mobile_schemes = {
+            scheme.lower()
+            for scheme in getattr(settings, "MOBILE_FRONTEND_SCHEMES", [])
+            if isinstance(scheme, str) and scheme.strip()
+        }
+        if parsed.scheme.lower() in allowed_mobile_schemes and parsed.netloc:
+            path = parsed.path.rstrip("/")
+            return f"{parsed.scheme}://{parsed.netloc}{path}"
         return fallback_url
 
     is_loopback = parsed.hostname in {"localhost", "127.0.0.1"}
