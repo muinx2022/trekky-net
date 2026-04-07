@@ -18,7 +18,7 @@
       </div>
     </div>
     <div class="category-tree-meta">
-      <form method="post" action="{% url 'admin_app:category-toggle-status' node.category.document_id %}" class="d-inline-flex align-items-center">
+      <form method="post" action="{% url 'admin_app:category-toggle-status' node.category.document_id %}" class="d-inline-flex align-items-center" data-preserve-scroll data-status-toggle-form>
         {% csrf_token %}
         <button
           type="submit"

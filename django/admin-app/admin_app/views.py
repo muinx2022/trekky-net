@@ -144,6 +144,22 @@ def build_comment_tree(comments):
     return nest(None)
 
 
+def is_ajax_request(request):
+    return request.headers.get("x-requested-with") == "XMLHttpRequest"
+
+
+def build_toggle_response(*, is_on: bool, title: str, aria_label: str, message: str):
+    return JsonResponse(
+        {
+            "ok": True,
+            "is_on": is_on,
+            "title": title,
+            "aria_label": aria_label,
+            "message": message,
+        }
+    )
+
+
 def build_login_form(request, data=None):
     form = AuthenticationForm(request=request, data=data)
     form.fields["username"].widget.attrs.update({"class": "form-control form-control-lg login-input", "placeholder": "admin@trekky.local", "autocomplete": "username"})
@@ -1142,7 +1158,16 @@ class PostToggleStatusView(AdminAppAccessMixin, View):
         post = get_object_or_404(Post, document_id=document_id)
         post.is_published = not post.is_published
         post.save()
-        messages.success(request, "Post status updated.")
+        message = "Post status updated."
+        if is_ajax_request(request):
+            label = "Published" if post.is_published else "Draft"
+            return build_toggle_response(
+                is_on=post.is_published,
+                title=label,
+                aria_label=label,
+                message=message,
+            )
+        messages.success(request, message)
         return redirect(request.META.get("HTTP_REFERER") or reverse("admin_app:post-list"))
 
 
@@ -1151,7 +1176,16 @@ class PageToggleStatusView(AdminAppAccessMixin, View):
         page = get_object_or_404(Page, document_id=document_id)
         page.is_published = not page.is_published
         page.save()
-        messages.success(request, "Page status updated.")
+        message = "Page status updated."
+        if is_ajax_request(request):
+            label = "Published" if page.is_published else "Draft"
+            return build_toggle_response(
+                is_on=page.is_published,
+                title=label,
+                aria_label=label,
+                message=message,
+            )
+        messages.success(request, message)
         return redirect(request.META.get("HTTP_REFERER") or reverse("admin_app:page-list"))
 
 
@@ -1160,7 +1194,15 @@ class CategoryToggleStatusView(AdminAppAccessMixin, View):
         category = get_object_or_404(Category, document_id=document_id)
         category.status = CategoryStatus.DRAFT if category.status == CategoryStatus.PUBLISHED else CategoryStatus.PUBLISHED
         category.save(update_fields=["status", "updated_at"])
-        messages.success(request, "Category status updated.")
+        message = "Category status updated."
+        if is_ajax_request(request):
+            return build_toggle_response(
+                is_on=category.status == CategoryStatus.PUBLISHED,
+                title=category.status,
+                aria_label=category.status,
+                message=message,
+            )
+        messages.success(request, message)
         return redirect(request.META.get("HTTP_REFERER") or reverse("admin_app:category-list"))
 
 
@@ -1169,7 +1211,15 @@ class CommentToggleStatusView(AdminAppAccessMixin, View):
         comment = get_object_or_404(Comment, document_id=document_id)
         comment.status = CommentStatus.PENDING if comment.status == CommentStatus.PUBLISHED else CommentStatus.PUBLISHED
         comment.save()
-        messages.success(request, "Comment status updated.")
+        message = "Comment status updated."
+        if is_ajax_request(request):
+            return build_toggle_response(
+                is_on=comment.status == CommentStatus.PUBLISHED,
+                title=comment.status,
+                aria_label=comment.status,
+                message=message,
+            )
+        messages.success(request, message)
         return redirect(request.META.get("HTTP_REFERER") or reverse("admin_app:comment-list"))
 
 

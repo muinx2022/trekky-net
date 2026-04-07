@@ -5,6 +5,141 @@
 {% block extra_js %}
 <script>
   document.addEventListener("DOMContentLoaded", () => {
+    const ensureToastContainer = () => {
+      let container = document.querySelector(".toast-container[data-ajax-toast-container]");
+      if (container) return container;
+
+      container = document.createElement("div");
+      container.className = "toast-container position-fixed top-0 end-0 p-3";
+      container.style.zIndex = "1100";
+      container.setAttribute("data-ajax-toast-container", "true");
+      document.body.appendChild(container);
+      return container;
+    };
+
+    const showToast = (message, variant = "success") => {
+      if (!message || typeof bootstrap === "undefined" || !bootstrap.Toast) {
+        return;
+      }
+
+      const themeClassMap = {
+        success: "text-bg-success",
+        danger: "text-bg-danger",
+        error: "text-bg-danger",
+        warning: "text-bg-warning",
+        info: "text-bg-secondary",
+      };
+
+      const container = ensureToastContainer();
+      const toast = document.createElement("div");
+      toast.className = `toast align-items-center border-0 ${themeClassMap[variant] || "text-bg-secondary"}`;
+      toast.setAttribute("role", "alert");
+      toast.setAttribute("aria-live", "assertive");
+      toast.setAttribute("aria-atomic", "true");
+      toast.setAttribute("data-bs-autohide", "true");
+      toast.setAttribute("data-bs-delay", "2200");
+      toast.innerHTML = `
+        <div class="d-flex">
+          <div class="toast-body fw-semibold"></div>
+          <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+        </div>
+      `;
+      const body = toast.querySelector(".toast-body");
+      if (body) body.textContent = message;
+      container.appendChild(toast);
+
+      const instance = bootstrap.Toast.getOrCreateInstance(toast);
+      toast.addEventListener("hidden.bs.toast", () => {
+        toast.remove();
+      }, { once: true });
+      instance.show();
+    };
+
+    const scrollStateKey = "admin-app:preserve-scroll";
+    const currentPath = `${window.location.pathname}${window.location.search}`;
+    try {
+      const savedScrollState = window.sessionStorage.getItem(scrollStateKey);
+      if (savedScrollState) {
+        const parsed = JSON.parse(savedScrollState);
+        if (parsed?.path === currentPath && Number.isFinite(parsed?.y)) {
+          window.scrollTo({ top: parsed.y, behavior: "auto" });
+        }
+        window.sessionStorage.removeItem(scrollStateKey);
+      }
+    } catch (error) {
+      window.sessionStorage.removeItem(scrollStateKey);
+    }
+
+    document.querySelectorAll("form[data-preserve-scroll]").forEach((form) => {
+      form.addEventListener("submit", () => {
+        if (form.matches("[data-status-toggle-form]")) {
+          return;
+        }
+        try {
+          window.sessionStorage.setItem(
+            scrollStateKey,
+            JSON.stringify({
+              path: currentPath,
+              y: window.scrollY,
+            }),
+          );
+        } catch (error) {
+          // ignore storage issues and allow normal submit
+        }
+      });
+    });
+
+    document.querySelectorAll("form[data-status-toggle-form]").forEach((form) => {
+      form.addEventListener("submit", async (event) => {
+        event.preventDefault();
+
+        const button = form.querySelector(".status-toggle");
+        if (!(button instanceof HTMLButtonElement)) {
+          form.submit();
+          return;
+        }
+
+        const csrfInput = form.querySelector('input[name="csrfmiddlewaretoken"]');
+        const formData = new FormData(form);
+
+        button.disabled = true;
+
+        try {
+          const response = await fetch(form.action, {
+            method: "POST",
+            body: formData,
+            headers: {
+              "X-Requested-With": "XMLHttpRequest",
+              ...(csrfInput instanceof HTMLInputElement ? { "X-CSRFToken": csrfInput.value } : {}),
+            },
+            credentials: "same-origin",
+          });
+
+          if (!response.ok) {
+            form.submit();
+            return;
+          }
+
+          const payload = await response.json();
+          button.classList.toggle("is-on", Boolean(payload?.is_on));
+          if (typeof payload?.title === "string") {
+            button.title = payload.title;
+          }
+          if (typeof payload?.aria_label === "string") {
+            button.setAttribute("aria-label", payload.aria_label);
+          }
+          if (typeof payload?.message === "string") {
+            showToast(payload.message, "success");
+          }
+        } catch (error) {
+          form.submit();
+          return;
+        } finally {
+          button.disabled = false;
+        }
+      });
+    });
+
     const modal = document.getElementById("assignModeratorModal");
     if (modal) {
       const categoryLabel = modal.querySelector("[data-category-label]");
@@ -189,7 +324,7 @@
               </td>
               <td data-label="Comments" class="admin-post-mobile-hidden">{{ item.comment_count|default:0 }}</td>
               <td data-label="Published" class="admin-post-status-cell">
-                <form method="post" action="{% url 'admin_app:post-toggle-status' item.document_id %}" class="d-inline-flex align-items-center">
+                <form method="post" action="{% url 'admin_app:post-toggle-status' item.document_id %}" class="d-inline-flex align-items-center" data-preserve-scroll data-status-toggle-form>
                   {% csrf_token %}
                   <button type="submit" class="status-toggle {% if item.is_published %}is-on{% endif %}" title="{% if item.is_published %}Published{% else %}Draft{% endif %}" aria-label="{% if item.is_published %}Published{% else %}Draft{% endif %}">
                     <span class="status-toggle-knob"></span>
@@ -202,7 +337,7 @@
               <td data-label="Type"><span class="badge text-bg-light">{{ item.get_type_display }}</span></td>
               <td data-label="Doc ID"><code>{{ item.document_id }}</code></td>
               <td data-label="Published">
-                <form method="post" action="{% url 'admin_app:page-toggle-status' item.document_id %}" class="d-inline-flex align-items-center">
+                <form method="post" action="{% url 'admin_app:page-toggle-status' item.document_id %}" class="d-inline-flex align-items-center" data-preserve-scroll data-status-toggle-form>
                   {% csrf_token %}
                   <button type="submit" class="status-toggle {% if item.is_published %}is-on{% endif %}" title="{% if item.is_published %}Published{% else %}Draft{% endif %}" aria-label="{% if item.is_published %}Published{% else %}Draft{% endif %}">
                     <span class="status-toggle-knob"></span>
@@ -216,7 +351,7 @@
               <td data-label="Doc ID"><code>{{ item.document_id }}</code></td>
               <td data-label="Order">{{ item.sort_order }}</td>
               <td data-label="Published">
-                <form method="post" action="{% url 'admin_app:category-toggle-status' item.document_id %}" class="d-inline-flex align-items-center">
+                <form method="post" action="{% url 'admin_app:category-toggle-status' item.document_id %}" class="d-inline-flex align-items-center" data-preserve-scroll data-status-toggle-form>
                   {% csrf_token %}
                   <button type="submit" class="status-toggle {% if item.status == 'published' %}is-on{% endif %}" title="{{ item.status }}" aria-label="{{ item.status }}">
                     <span class="status-toggle-knob"></span>
@@ -231,7 +366,7 @@
               <td data-label="Author" class="admin-table-primary-cell"><div class="fw-semibold">{{ item.author_name }}</div><div class="small text-secondary">{{ item.author_email|default:"-" }}</div></td>
               <td data-label="Target">{{ item.target_type }} / <code>{{ item.target_document_id }}</code></td>
               <td data-label="Published">
-                <form method="post" action="{% url 'admin_app:comment-toggle-status' item.document_id %}" class="d-inline-flex align-items-center">
+                <form method="post" action="{% url 'admin_app:comment-toggle-status' item.document_id %}" class="d-inline-flex align-items-center" data-preserve-scroll data-status-toggle-form>
                   {% csrf_token %}
                   <button type="submit" class="status-toggle {% if item.status == 'published' %}is-on{% endif %}" title="{{ item.status }}" aria-label="{{ item.status }}">
                     <span class="status-toggle-knob"></span>
