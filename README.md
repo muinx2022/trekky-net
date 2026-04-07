@@ -6,7 +6,7 @@ Target structure:
 django/
   admin/
   admin-app/
-web/
+web-nuxt/
 ```
 
 ## Backend
@@ -28,14 +28,13 @@ Admin surfaces:
 - `http://localhost:8000/admin-app/` for Trekky admin app
 - `http://localhost:8000/api/docs/` for OpenAPI docs
 
-## Web
+## Frontend (Nuxt 4)
 
 ```powershell
-cd web
+cd web-nuxt
 npm install
 npm run dev
 ```
-
 ## Run Both Apps
 
 From the repo root:
@@ -51,14 +50,14 @@ Or on Windows:
 .\run-dev.cmd
 ```
 
-This runs Django and Next.js in one terminal. `Ctrl+C` stops both.
+This runs Django and Nuxt 4 in one terminal. `Ctrl+C` stops both.
 
 This scaffold includes:
 
 - Django 6.0.3 backend
 - DRF + SimpleJWT APIs
 - Bootstrap-based `admin-app`
-- Next.js `web` starter with public and moderator routes
+- Nuxt 4 frontend for the public Trekky site
 - Import command skeleton for Strapi content
 
 ## Docker And CI/CD
@@ -66,7 +65,7 @@ This scaffold includes:
 Production deployment files live in:
 
 - `deploy/docker/api.Dockerfile`
-- `web/Dockerfile`
+- `web-nuxt/Dockerfile`
 - `deploy/vps/docker-compose.yml`
 - `deploy/vps/deploy.sh`
 - `deploy/vps/CUTOVER.md`
@@ -75,9 +74,19 @@ Production deployment files live in:
 GitHub Actions is set up to:
 
 1. Build and push the Django API image to Docker Hub
-2. Build and push the Next.js web image to Docker Hub
+2. Build and push the Nuxt web image to Docker Hub
 3. Copy deploy files to `~/projects/trekky-net` on the VPS
 4. Run `deploy.sh` on the VPS to pull images, migrate, collect static files, and restart containers
+
+Frontend runtime variables for Nuxt:
+
+```env
+NUXT_PUBLIC_API_URL=http://127.0.0.1:8000
+NUXT_API_URL=http://127.0.0.1:8000
+NUXT_PUBLIC_SITE_URL=http://localhost:3001
+NUXT_PUBLIC_BASE_URL=http://localhost:3001
+NUXT_PUBLIC_GA4_MEASUREMENT_ID=
+```
 
 Create the VPS env file from the example:
 
@@ -96,9 +105,11 @@ Required GitHub secrets:
 
 Optional GitHub variables:
 
-- `NEXT_PUBLIC_API_URL`
-- `NEXT_PUBLIC_SITE_URL`
-- `NEXT_PUBLIC_BASE_URL`
+- `NUXT_API_URL`
+- `NUXT_PUBLIC_API_URL`
+- `NUXT_PUBLIC_SITE_URL`
+- `NUXT_PUBLIC_BASE_URL`
+- `NUXT_PUBLIC_GA4_MEASUREMENT_ID`
 
 When you are ready to switch `trekky.net` traffic from the old Strapi stack to the new Django stack, follow `deploy/vps/CUTOVER.md`.
 

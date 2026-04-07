@@ -1,5 +1,7 @@
 # Trekky Domain Cutover
 
+This cutover now targets the Nuxt frontend running from `web-nuxt/` and exposed by the `web` service in `trekky-net`.
+
 Current production traffic still goes through the old `trekky-strapi` Cloudflare Tunnel targets:
 
 - `trekky.net` -> old frontend
@@ -39,11 +41,13 @@ The new `trekky-net` stack is already running on the VPS and exposes stable shar
 
 ## Cloudflare Tunnel Switch
 
-Update the existing Cloudflare Tunnel public hostname routes from the old services to the new ones:
+Cloudflare's current dashboard docs place these settings under Zero Trust / Networking / Tunnels or Networking / Tunnels, depending on account layout. Open the active tunnel that fronts `trekky.net`, then update the published application or public hostname routes to:
 
 - `trekky.net` -> `http://trekky-net-web:3000`
 - `www.trekky.net` -> `http://trekky-net-web:3000`
 - `api.trekky.net` -> `http://trekky-net-api:8000`
+
+Cloudflare will automatically maintain the DNS mapping to the tunnel when you update the route in the dashboard.
 
 If there is a dedicated admin hostname in Cloudflare, either remove it or point it intentionally to the new stack.
 

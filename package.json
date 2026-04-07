@@ -3,8 +3,11 @@
   "private": true,
   "scripts": {
     "dev:django": ".\\.venv\\Scripts\\python.exe django\\admin\\manage.py runserver 8000",
-    "dev:web": "npm --prefix web run dev",
-    "dev": "concurrently -k --names django,web --prefix-colors cyan,green \"npm:dev:django\" \"npm:dev:web\""
+    "dev:frontend": "npm --prefix web-nuxt run dev",
+    "dev:web-nuxt": "npm --prefix web-nuxt run dev",
+    "build:frontend": "npm --prefix web-nuxt run build",
+    "dev": "concurrently -k --names django,nuxt --prefix-colors cyan,magenta \"npm:dev:django\" \"npm:dev:frontend\"",
+    "dev:nuxt": "concurrently -k --names django,nuxt --prefix-colors cyan,magenta \"npm:dev:django\" \"npm:dev:frontend\""
   },
   "devDependencies": {
     "concurrently": "^9.2.1"

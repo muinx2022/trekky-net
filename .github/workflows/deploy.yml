@@ -61,15 +61,17 @@ jobs:
             type=sha
       - uses: docker/build-push-action@v7
         with:
-          context: .
-          file: ./web/Dockerfile
+          context: ./web-nuxt
+          file: ./web-nuxt/Dockerfile
           push: true
           cache-from: type=gha
           cache-to: type=gha,mode=max
           build-args: |
-            NEXT_PUBLIC_API_URL=${{ vars.NEXT_PUBLIC_API_URL || 'https://api.trekky.net' }}
-            NEXT_PUBLIC_SITE_URL=${{ vars.NEXT_PUBLIC_SITE_URL || 'https://trekky.net' }}
-            NEXT_PUBLIC_BASE_URL=${{ vars.NEXT_PUBLIC_BASE_URL || 'https://trekky.net' }}
+            NUXT_API_URL=${{ vars.NUXT_API_URL || 'https://api.trekky.net' }}
+            NUXT_PUBLIC_API_URL=${{ vars.NUXT_PUBLIC_API_URL || 'https://api.trekky.net' }}
+            NUXT_PUBLIC_SITE_URL=${{ vars.NUXT_PUBLIC_SITE_URL || 'https://trekky.net' }}
+            NUXT_PUBLIC_BASE_URL=${{ vars.NUXT_PUBLIC_BASE_URL || 'https://trekky.net' }}
+            NUXT_PUBLIC_GA4_MEASUREMENT_ID=${{ vars.NUXT_PUBLIC_GA4_MEASUREMENT_ID || '' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
 

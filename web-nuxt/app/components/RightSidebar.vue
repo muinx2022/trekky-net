@@ -1,0 +1,114 @@
+<template>
+  <div class="flex h-full min-h-0 flex-col gap-4">
+    <div v-if="categories.length > 0" class="rounded-lg border border-gray-200 bg-white shadow-sm">
+      <h3 class="border-b border-gray-100 px-4 py-3 text-sm font-semibold text-gray-800">Danh muc</h3>
+      <nav class="flex flex-col gap-1 p-2">
+        <NuxtLink
+          to="/"
+          class="flex items-center gap-2.5 rounded-md px-3 py-2.5 text-sm text-gray-600 transition-colors hover:bg-gray-50 hover:text-gray-900"
+        >
+          <span class="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-gray-400 text-white">
+            <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+              <polyline points="9 22 9 12 15 12 15 22" />
+            </svg>
+          </span>
+          <span class="font-medium">Trang chu</span>
+        </NuxtLink>
+
+        <NuxtLink
+          v-for="category in categories"
+          :key="category.documentId"
+          :to="`/c/${category.slug}`"
+          class="flex items-center gap-2.5 rounded-md px-3 py-2.5 text-sm text-gray-600 transition-colors hover:bg-gray-50 hover:text-gray-900"
+        >
+          <span class="flex h-5 w-5 shrink-0 items-center justify-center rounded text-[10px] font-bold text-white" :class="getColorBySlug(category.slug)">
+            {{ category.name[0]?.toUpperCase() }}
+          </span>
+          <span class="font-medium">{{ category.name }}</span>
+        </NuxtLink>
+      </nav>
+    </div>
+
+    <div class="rounded-lg border border-gray-200 bg-white shadow-sm">
+      <h3 class="flex items-center gap-1.5 border-b border-gray-100 px-4 py-3 text-sm font-semibold text-gray-800">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+        </svg>
+        Bai viet noi bat
+      </h3>
+      <div class="flex flex-col gap-1 p-2">
+        <NuxtLink
+          v-for="(post, index) in topPosts"
+          :key="post.documentId"
+          :to="`/p/${post.slug}--${post.documentId}`"
+          class="group flex items-start gap-3 rounded-md px-2 py-2.5 transition-colors hover:bg-gray-50"
+        >
+          <span class="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded bg-gray-100 text-xs font-semibold text-gray-400">
+            {{ index + 1 }}
+          </span>
+          <div class="min-w-0 flex-1">
+            <h4 class="line-clamp-2 text-sm leading-snug text-gray-700 transition-colors group-hover:text-gray-900">
+              {{ post.title }}
+            </h4>
+            <div class="mt-1 flex items-center gap-2 text-xs text-gray-400">
+              <span>{{ post.likesCount ?? 0 }} thich</span>
+              <span>&middot;</span>
+              <span>{{ post.commentsCount ?? 0 }} binh luan</span>
+            </div>
+          </div>
+        </NuxtLink>
+
+        <div v-if="topPosts.length === 0" class="py-4 text-center text-sm text-gray-400">Chua co bai viet</div>
+      </div>
+    </div>
+
+    <div v-if="topTags.length > 0" class="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+      <h3 class="mb-3 text-sm font-semibold text-gray-800">Xu huong</h3>
+      <div class="flex flex-wrap gap-1.5">
+        <NuxtLink
+          v-for="tag in topTags"
+          :key="tag.documentId"
+          :to="`/t/${tag.slug}`"
+          class="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-1 text-xs text-gray-600 transition-colors hover:bg-gray-200 hover:text-gray-800"
+        >
+          #{{ tag.name }}
+        </NuxtLink>
+      </div>
+    </div>
+
+    <div class="mt-auto rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+      <div v-if="footerPages.length > 0" class="mb-3 flex flex-col gap-1">
+        <NuxtLink
+          v-for="page in footerPages"
+          :key="page.documentId"
+          :to="`/page/${page.slug}`"
+          class="text-xs text-gray-500 transition-colors hover:text-gray-800 hover:underline"
+        >
+          {{ page.title }}
+        </NuxtLink>
+      </div>
+      <p class="text-xs text-gray-400">&copy; {{ currentYear }} Trekky</p>
+    </div>
+  </div>
+</template>
+
+<script setup lang="ts">
+import type { Category, Post, StrapiPage, Tag } from "../../shared/types";
+
+defineProps<{
+  categories: Category[];
+  footerPages: StrapiPage[];
+  topPosts: Post[];
+  topTags: Tag[];
+}>();
+
+const currentYear = new Date().getFullYear();
+
+const COLOR_CLASSES = ["bg-rose-400", "bg-orange-400", "bg-amber-400", "bg-lime-500", "bg-emerald-500", "bg-cyan-500", "bg-sky-400", "bg-blue-400", "bg-indigo-400", "bg-violet-400", "bg-fuchsia-400", "bg-pink-400"];
+
+function getColorBySlug(slug: string) {
+  const hash = Array.from(slug).reduce((acc, ch) => acc + ch.charCodeAt(0), 0);
+  return COLOR_CLASSES[hash % COLOR_CLASSES.length];
+}
+</script>
