@@ -1,6 +1,6 @@
 <template>
   <section class="max-w-3xl space-y-5">
-    <div class="overflow-hidden rounded-[2rem] border border-slate-200 bg-[linear-gradient(135deg,#f8fafc_0%,#e0f2fe_45%,#fff7ed_100%)] shadow-sm dark:border-slate-700 dark:bg-[linear-gradient(135deg,#0f172a_0%,#0b253a_45%,#172033_100%)]">
+    <div class="overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
       <div class="px-6 py-8 sm:px-8 lg:px-10">
         <span class="inline-flex w-fit items-center rounded-full border border-white/70 bg-white/80 px-3 py-1 text-xs font-semibold uppercase tracking-[0.24em] text-sky-700 shadow-sm backdrop-blur dark:border-slate-500/60 dark:bg-slate-900/60 dark:text-sky-200">
           Hồ sơ
@@ -47,7 +47,7 @@
               </button>
             </div>
             <p class="text-xs text-slate-500">
-              {{ avatarFile ? "Ảnh xem trước đang được hiển thị từ file bạn vừa chọn." : "Chọn ảnh đại diện mới, hoặc xóa avatar hiện tại nếu không muốn hiển ảnh." }}
+              {{ avatarFile ? "Ảnh xem trước đang được hiển thị từ file bạn vừa chọn." : "Chọn ảnh đại diện mới, hoặc xóa avatar hiện tại nếu không muốn hiển thị ảnh đại diện." }}
             </p>
           </div>
         </div>
