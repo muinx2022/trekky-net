@@ -24,6 +24,21 @@ const themeBootScript = `
   } catch {}
 })();
 `;
+const scrollBootScript = `
+(() => {
+  try {
+    const key = 'trekky:scroll:' + window.location.pathname + window.location.search;
+    const raw = window.sessionStorage.getItem(key);
+    if (!raw) return;
+    const top = Number(raw);
+    if (!Number.isFinite(top) || top <= 0) return;
+    if ('scrollRestoration' in window.history) {
+      window.history.scrollRestoration = 'manual';
+    }
+    window.scrollTo(0, top);
+  } catch {}
+})();
+`;
 
 const globalSchemas = [
   buildOrganizationSchema(runtimeConfig.public.siteUrl),
@@ -84,6 +99,11 @@ useHead({
     {
       key: "theme-boot",
       innerHTML: themeBootScript,
+      tagPosition: "head",
+    },
+    {
+      key: "scroll-boot",
+      innerHTML: scrollBootScript,
       tagPosition: "head",
     },
     {

@@ -28,6 +28,7 @@ const props = defineProps<{
   tagSlug?: string;
   authorUsername?: string;
 }>();
+const route = useRoute();
 
 type StoredFeedState = {
   posts: Post[];
@@ -47,7 +48,7 @@ const total = useState<number>(`infinite-posts:${feedKey.value}:total`, () => pr
 const page = useState<number>(`infinite-posts:${feedKey.value}:page`, () => 1);
 const pending = ref(false);
 const storageKey = computed(() => `trekky:infinite-posts:${feedKey.value}`);
-const scrollStorageKey = computed(() => `${storageKey.value}:scroll-y`);
+const scrollStorageKey = computed(() => `trekky:scroll:${route.fullPath}`);
 
 function resetFromInitial() {
   posts.value = [...(props.initialPosts ?? [])];
