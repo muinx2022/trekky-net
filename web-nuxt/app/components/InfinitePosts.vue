@@ -29,6 +29,12 @@ const props = defineProps<{
   authorUsername?: string;
 }>();
 
+type StoredFeedState = {
+  posts: Post[];
+  total: number;
+  page: number;
+};
+
 const feedKey = computed(() => {
   if (props.categorySlug) return `category:${props.categorySlug}`;
   if (props.tagSlug) return `tag:${props.tagSlug}`;
@@ -40,6 +46,7 @@ const posts = useState<Post[]>(`infinite-posts:${feedKey.value}:items`, () => [.
 const total = useState<number>(`infinite-posts:${feedKey.value}:total`, () => props.initialTotal ?? 0);
 const page = useState<number>(`infinite-posts:${feedKey.value}:page`, () => 1);
 const pending = ref(false);
+const storageKey = computed(() => `trekky:infinite-posts:${feedKey.value}`);
 
 function resetFromInitial() {
   posts.value = [...(props.initialPosts ?? [])];
@@ -60,6 +67,39 @@ watch(
   },
   { immediate: true },
 );
+
+function restoreFromSession() {
+  if (!import.meta.client) return;
+  const raw = window.sessionStorage.getItem(storageKey.value);
+  if (!raw) return;
+  try {
+    const stored = JSON.parse(raw) as StoredFeedState;
+    if (!Array.isArray(stored.posts) || typeof stored.total !== "number" || typeof stored.page !== "number") return;
+    posts.value = stored.posts;
+    total.value = stored.total;
+    page.value = stored.page;
+  } catch {
+    window.sessionStorage.removeItem(storageKey.value);
+  }
+}
+
+watch(
+  () => [posts.value, total.value, page.value, storageKey.value],
+  () => {
+    if (!import.meta.client) return;
+    const payload: StoredFeedState = {
+      posts: posts.value,
+      total: total.value,
+      page: page.value,
+    };
+    window.sessionStorage.setItem(storageKey.value, JSON.stringify(payload));
+  },
+  { deep: true },
+);
+
+onMounted(() => {
+  restoreFromSession();
+});
 
 const canLoadMore = computed(() => posts.value.length < total.value);
 
