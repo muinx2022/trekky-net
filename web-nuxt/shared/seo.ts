@@ -162,6 +162,58 @@ export function extractFirstImageFromHtml(html: string, apiUrl: string): string 
   return src.startsWith("http") ? src : `${apiUrl}${src}`;
 }
 
+export type HtmlImage = {
+  src: string;
+  alt?: string;
+};
+
+function decodeHtmlAttribute(value: string): string {
+  return value
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">");
+}
+
+function extractHtmlAttribute(tag: string, attribute: string): string | undefined {
+  const pattern = new RegExp(`\\b${attribute}\\s*=\\s*["']([^"']*)["']`, "i");
+  const match = tag.match(pattern);
+  return match?.[1] ? decodeHtmlAttribute(match[1]) : undefined;
+}
+
+export function extractImagesFromHtml(html: string, apiUrl: string): HtmlImage[] {
+  if (!html) return [];
+
+  const images: HtmlImage[] = [];
+  const seen = new Set<string>();
+
+  for (const match of html.matchAll(/<img\b[^>]*>/gi)) {
+    const tag = match[0];
+    const rawSrc = extractHtmlAttribute(tag, "src");
+    if (!rawSrc) continue;
+    const src = toAbsoluteMediaUrl(rawSrc, apiUrl) ?? rawSrc;
+    if (seen.has(src)) continue;
+    seen.add(src);
+    images.push({
+      src,
+      alt: extractHtmlAttribute(tag, "alt"),
+    });
+  }
+
+  return images;
+}
+
+export function stripImagesFromHtml(html: string): string {
+  if (!html) return html;
+
+  return html
+    .replace(/<figure\b[^>]*>[\s\S]*?<img\b[\s\S]*?<\/figure>/gi, "")
+    .replace(/<img\b[^>]*>/gi, "")
+    .replace(/<p>\s*(?:&nbsp;|\s|<br\s*\/?>)*<\/p>/gi, "")
+    .trim();
+}
+
 export function buildOgImages(imageUrl: string | null | undefined, siteUrl: string, alt?: string | null) {
   const resolvedUrl = imageUrl ?? absoluteUrl(DEFAULT_OG_IMAGE, siteUrl);
   return [{ url: resolvedUrl, width: 1200, height: 630, alt: alt ?? SITE_NAME }];

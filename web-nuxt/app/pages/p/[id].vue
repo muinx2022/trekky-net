@@ -25,12 +25,28 @@
       </div>
     </div>
 
-    <div v-if="(post.images?.length ?? 0) > 0" class="px-6 pb-5">
-      <PostViewGallery :images="post.images ?? []" />
+    <div v-if="contentImages.length" class="space-y-3 px-6 pb-5">
+      <button type="button" class="block overflow-hidden rounded-2xl bg-slate-100" aria-label="Mở ảnh lớn" @click="lightboxIndex = activeImageIndex">
+        <img :src="activeImage.src" :alt="activeImage.alt ?? ''" class="max-h-[540px] w-full object-cover" draggable="false" />
+      </button>
+
+      <div v-if="contentImages.length > 1" class="grid grid-cols-4 gap-2 sm:grid-cols-5 md:grid-cols-6">
+        <button
+          v-for="(image, index) in contentImages"
+          :key="`${image.src}-${index}`"
+          type="button"
+          class="aspect-square overflow-hidden rounded-lg border-2 transition"
+          :class="index === activeImageIndex ? 'border-slate-900' : 'border-transparent hover:border-slate-300'"
+          :aria-label="`Xem ảnh ${index + 1}`"
+          @click="activeImageIndex = index"
+        >
+          <img :src="image.src" :alt="image.alt ?? ''" class="h-full w-full object-cover" draggable="false" />
+        </button>
+      </div>
     </div>
 
     <div class="px-6 pb-6">
-      <RichTextWithLightbox :html="post.content" />
+      <RichTextWithLightbox :html="contentWithoutImages" />
     </div>
 
     <div v-if="post.tags?.length" class="flex flex-wrap gap-1.5 px-6 pb-5">
@@ -55,6 +71,14 @@
       <GenericComments target-type="post" :target-document-id="post.documentId" :initial-comments="comments" />
     </div>
   </article>
+
+  <Lightbox
+    v-if="lightboxIndex !== null"
+    :images="contentImages"
+    :index="lightboxIndex"
+    @close="lightboxIndex = null"
+    @navigate="(index) => (lightboxIndex = index)"
+  />
 </template>
 
 <script setup lang="ts">
@@ -63,8 +87,10 @@ import {
   buildBreadcrumbSchema,
   buildCanonicalUrl,
   buildOgImages,
+  extractImagesFromHtml,
   extractFirstImageFromHtml,
   SITE_NAME,
+  stripImagesFromHtml,
   stripHtml,
   toAbsoluteMediaUrl,
   truncate,
@@ -96,8 +122,13 @@ const formattedDate = computed(() => {
   return source ? new Date(source).toLocaleString("vi-VN") : "";
 });
 const description = computed(() => truncate(stripHtml(post.value?.content ?? ""), 160));
+const contentImages = computed(() => extractImagesFromHtml(post.value?.content ?? "", config.public.apiUrl));
+const contentWithoutImages = computed(() => stripImagesFromHtml(post.value?.content ?? ""));
+const activeImageIndex = ref(0);
+const lightboxIndex = ref<number | null>(null);
+const activeImage = computed(() => contentImages.value[activeImageIndex.value] ?? contentImages.value[0] ?? { src: "", alt: "" });
 const imageUrl = computed(
-  () => toAbsoluteMediaUrl(post.value?.images?.[0]?.url, config.public.apiUrl) ?? extractFirstImageFromHtml(post.value?.content ?? "", config.public.apiUrl),
+  () => contentImages.value[0]?.src ?? toAbsoluteMediaUrl(post.value?.images?.[0]?.url, config.public.apiUrl) ?? extractFirstImageFromHtml(post.value?.content ?? "", config.public.apiUrl),
 );
 const canonicalUrl = computed(() => buildCanonicalUrl(`/p/${canonicalId}`, config.public.siteUrl));
 const ogImage = computed(() => buildOgImages(imageUrl.value, config.public.siteUrl, post.value.title)[0]);
@@ -117,6 +148,15 @@ const breadcrumbSchema = computed(() =>
     { name: SITE_NAME, item: buildCanonicalUrl("/", config.public.siteUrl) },
     { name: post.value.title, item: canonicalUrl.value },
   ]),
+);
+
+watch(
+  contentImages,
+  () => {
+    activeImageIndex.value = 0;
+    lightboxIndex.value = null;
+  },
+  { immediate: true },
 );
 
 useSeoMeta({

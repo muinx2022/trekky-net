@@ -12,89 +12,75 @@
         <div class="space-y-1">
           <p class="text-xs font-semibold uppercase tracking-[0.24em] text-sky-700 dark:text-sky-300">{{ mode === 'create' ? 'Bản nháp mới' : 'Cập nhật bài viết' }}</p>
           <h2 class="text-xl font-semibold text-slate-900 dark:text-slate-50">{{ mode === 'create' ? 'Thông tin bài viết' : 'Chỉnh sửa bài viết' }}</h2>
-          <p class="text-sm text-slate-600 dark:text-slate-300">Nhập tiêu đề, nội dung, danh mục và media của bài viết.</p>
+          <p class="text-sm text-slate-600 dark:text-slate-300">Nhập tiêu đề, nội dung và danh mục của bài viết. Ảnh sẽ được chèn trực tiếp trong nội dung.</p>
         </div>
       </div>
 
-      <div class="space-y-1 px-5 pt-5 sm:px-6">
-        <label for="post-title" class="block text-sm font-medium text-gray-700">Tiêu đề bài viết</label>
-        <input
-          id="post-title"
-          v-model="title"
-          maxlength="120"
-          :aria-invalid="fieldErrors.title ? 'true' : 'false'"
-          class="w-full rounded-2xl border px-4 py-3 text-sm text-gray-800 transition focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500"
-          :class="fieldErrors.title ? 'border-red-300 bg-red-50/70' : 'border-gray-200 bg-gray-50'"
-        />
-        <div class="flex items-start justify-between gap-3 text-xs">
-          <p :class="fieldErrors.title ? 'text-red-600' : 'text-gray-500'">
-            {{ fieldErrors.title || 'Nên rõ chủ đề, địa điểm hoặc trải nghiệm chính của bài viết.' }}
-          </p>
-          <span class="shrink-0 text-gray-400">{{ title.trim().length }}/120</span>
-        </div>
-      </div>
-
-      <div class="px-5 pt-4 sm:px-6">
-        <nav class="flex gap-1 rounded-2xl bg-gray-100 p-1">
-          <button type="button" class="flex-1 rounded-xl px-4 py-2 text-sm font-semibold transition-all" :class="activeTab === 'content' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'" @click="activeTab = 'content'">
-            Nội dung
-          </button>
-          <button type="button" class="flex-1 rounded-xl px-4 py-2 text-sm font-semibold transition-all" :class="activeTab === 'images' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'" @click="activeTab = 'images'">
-            {{ totalMediaCount > 0 ? `Media (${totalMediaCount})` : "Media" }}
-          </button>
-        </nav>
-      </div>
-
-      <div v-if="activeTab === 'content'" class="space-y-5 p-5 sm:p-6">
+      <div class="space-y-5 p-5 sm:p-6">
         <fieldset class="space-y-1">
           <div class="flex items-center justify-between gap-3">
-            <legend class="block text-sm font-medium text-gray-700">Danh mục</legend>
-            <span class="text-xs text-gray-400">Chọn ít nhất 1 danh mục</span>
+            <legend class="block text-sm font-semibold uppercase tracking-[0.18em] text-sky-700 dark:text-sky-300">Danh mục</legend>
+            <span class="rounded-full bg-sky-100 px-2.5 py-1 text-[11px] font-semibold text-sky-700 dark:bg-sky-500/15 dark:text-sky-200">Chọn ít nhất 1</span>
           </div>
           <p v-if="loadingCategories" class="text-sm text-gray-500">Đang tải danh mục...</p>
           <div v-else class="relative" ref="categoryMenuEl">
             <button
               type="button"
-              class="flex min-h-12 w-full items-center justify-between gap-2 rounded-2xl border px-3 py-2 text-sm text-gray-800"
-              :class="fieldErrors.categories ? 'border-red-300 bg-red-50/70' : 'border-gray-200 bg-gray-50'"
+              class="flex min-h-14 w-full items-center justify-between gap-3 rounded-3xl border px-4 py-3 text-sm text-gray-800 shadow-sm transition dark:text-slate-100"
+              :class="fieldErrors.categories ? 'border-red-300 bg-red-50/80 dark:border-red-500/70 dark:bg-red-500/10' : 'border-sky-200 bg-gradient-to-r from-sky-50 via-white to-slate-50 hover:border-sky-300 dark:border-slate-600 dark:from-slate-800 dark:via-slate-900 dark:to-slate-800 dark:hover:border-sky-500/60'"
               @click="categoryMenuOpen = !categoryMenuOpen"
             >
               <span class="flex flex-1 flex-wrap items-center gap-1 text-left">
-                <span v-if="selectedCategoryItems.length === 0" class="text-gray-500">Chọn danh mục</span>
+                <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-sky-600 text-base font-bold text-white shadow-sm dark:bg-sky-500">c/</span>
+                <span v-if="selectedCategoryItems.length === 0" class="text-sm font-medium text-gray-500 dark:text-slate-400">Chọn chuyên mục cho bài viết</span>
                 <span
                   v-for="item in selectedCategoryItems"
                   :key="item.value"
-                  class="inline-flex items-center gap-1 rounded bg-gray-200 px-2 py-1 text-xs text-gray-800"
+                  class="inline-flex items-center gap-1 rounded-full bg-sky-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm dark:bg-sky-500"
                 >
-                  {{ item.label }}
-                  <span role="button" tabindex="0" class="inline-flex h-4 w-4 items-center justify-center rounded hover:bg-gray-300" @click.stop="selectedCategories = selectedCategories.filter((value) => value !== item.value)">x</span>
+                  c/{{ item.label }}
+                  <span role="button" tabindex="0" class="inline-flex h-4 w-4 items-center justify-center rounded-full bg-white/20 hover:bg-white/30" @click.stop="selectedCategories = selectedCategories.filter((value) => value !== item.value)">x</span>
                 </span>
               </span>
-              <span class="text-xs text-gray-500">v</span>
+              <span class="rounded-full bg-white/80 px-2 py-1 text-xs font-semibold text-sky-700 shadow-sm dark:bg-slate-700 dark:text-sky-200">{{ categoryMenuOpen ? "Ẩn" : "Chọn" }}</span>
             </button>
 
-            <div v-if="categoryMenuOpen" class="absolute z-30 mt-1 max-h-64 w-full overflow-y-auto rounded-2xl border border-gray-200 bg-white p-1 shadow-md">
+            <div v-if="categoryMenuOpen" class="absolute z-30 mt-2 max-h-72 w-full overflow-y-auto rounded-3xl border border-sky-200 bg-white p-2 shadow-xl shadow-sky-100/60 dark:border-slate-600 dark:bg-slate-900 dark:shadow-black/30">
               <button
                 v-for="option in categoryTreeOptions"
                 :key="option.value"
                 type="button"
-                class="flex w-full items-center justify-between rounded px-2 py-1.5 text-left text-sm text-gray-700 hover:bg-gray-100"
-                :style="{ paddingLeft: `${8 + option.depth * 16}px` }"
+                class="flex w-full items-center justify-between rounded-2xl px-3 py-2 text-left text-sm transition"
+                :class="selectedCategories.includes(option.value) ? 'bg-sky-600 text-white shadow-sm dark:bg-sky-500' : 'text-gray-700 hover:bg-sky-50 dark:text-slate-200 dark:hover:bg-slate-800'"
+                :style="{ paddingLeft: `${12 + option.depth * 18}px` }"
                 @click="toggleCategory(option.value)"
               >
-                <span>{{ option.label }}</span>
-                <span v-if="selectedCategories.includes(option.value)" class="text-xs">✓</span>
+                <span class="font-medium">{{ option.depth > 0 ? `↳ ${option.label}` : `c/${option.label}` }}</span>
+                <span v-if="selectedCategories.includes(option.value)" class="text-xs font-semibold">✓</span>
               </button>
-              <p v-if="categoryTreeOptions.length === 0" class="px-2 py-1.5 text-sm text-gray-500">Chưa có danh mục</p>
+              <p v-if="categoryTreeOptions.length === 0" class="px-3 py-2 text-sm text-gray-500 dark:text-slate-400">Chưa có danh mục</p>
             </div>
           </div>
           <p v-if="fieldErrors.categories" class="text-xs text-red-600">{{ fieldErrors.categories }}</p>
         </fieldset>
 
-        <fieldset class="space-y-1">
-          <legend class="block text-sm font-medium text-gray-700">Tags</legend>
-          <TagCombobox ref="tagComboboxRef" v-model="selectedTags" />
-        </fieldset>
+        <div class="space-y-1">
+          <label for="post-title" class="block text-sm font-medium text-gray-700">Tiêu đề bài viết</label>
+          <input
+            id="post-title"
+            v-model="title"
+            maxlength="120"
+            :aria-invalid="fieldErrors.title ? 'true' : 'false'"
+            class="w-full rounded-2xl border px-4 py-3 text-sm text-gray-800 transition focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500"
+            :class="fieldErrors.title ? 'border-red-300 bg-red-50/70' : 'border-gray-200 bg-gray-50'"
+          />
+          <div class="flex items-start justify-between gap-3 text-xs">
+            <p :class="fieldErrors.title ? 'text-red-600' : 'text-gray-500'">
+              {{ fieldErrors.title || 'Nên rõ chủ đề, địa điểm hoặc trải nghiệm chính của bài viết.' }}
+            </p>
+            <span class="shrink-0 text-gray-400">{{ title.trim().length }}/120</span>
+          </div>
+        </div>
 
         <div class="space-y-2">
           <div class="flex items-center justify-between">
@@ -114,49 +100,11 @@
             <span class="shrink-0 text-gray-400">{{ contentCharacterCount }} ký tự</span>
           </div>
         </div>
-      </div>
 
-      <div v-if="activeTab === 'images'" class="space-y-4 p-5 sm:p-6">
-        <div class="flex items-center justify-between gap-3">
-          <p class="text-sm text-gray-500">Ảnh >1280px tự động thu nhỏ. Ảnh tối đa 5MB, video tối đa 200MB.</p>
-          <button type="button" class="rounded-md bg-gray-500 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-gray-600 disabled:opacity-60" :disabled="processingGallery" @click="openGalleryPicker">
-            {{ processingGallery ? "Đang xử lý..." : "+ Thêm media" }}
-          </button>
-        </div>
-
-        <input ref="fileInputEl" type="file" accept="image/*,video/*" multiple class="hidden" @change="handleFileSelect" />
-        <input ref="cameraFileInputEl" type="file" accept="image/*" capture="environment" class="hidden" @change="handleFileSelect" />
-
-        <button
-          v-if="totalMediaCount === 0"
-          type="button"
-          class="flex w-full flex-col items-center gap-2 rounded-lg border-2 border-dashed border-gray-200 py-12 text-gray-400 transition-colors hover:border-gray-400 hover:text-gray-500"
-          @click="openGalleryPicker"
-        >
-          <span class="text-3xl">+</span>
-          <span class="text-sm">Chọn ảnh hoặc video để tải lên</span>
-        </button>
-        <div v-else class="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-5">
-          <div v-for="item in visibleExistingMedia" :key="item.id" class="group relative aspect-square overflow-hidden rounded-lg border border-gray-200 bg-gray-100">
-            <video v-if="item.mime?.startsWith('video/')" :src="resolveMediaUrl(item.url)" class="h-full w-full object-cover" />
-            <img v-else :src="resolveMediaUrl(item.url)" :alt="item.alternativeText ?? ''" class="h-full w-full object-cover" />
-            <button type="button" class="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full bg-black/60 text-white opacity-0 transition-colors group-hover:opacity-100 hover:bg-red-500" @click="removedMediaIds.add(item.id)">
-              x
-            </button>
-          </div>
-
-          <div v-for="(file, index) in newMediaFiles" :key="`new-${index}`" class="group relative aspect-square overflow-hidden rounded-lg border border-gray-200 bg-gray-100">
-            <video v-if="file.type.startsWith('video/')" :src="newMediaPreviews[index]" class="h-full w-full object-cover" />
-            <img v-else :src="newMediaPreviews[index]" :alt="file.name" class="h-full w-full object-cover" />
-            <button type="button" class="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full bg-black/60 text-white opacity-0 transition-colors group-hover:opacity-100 hover:bg-red-500" @click="newMediaFiles = newMediaFiles.filter((_, itemIndex) => itemIndex !== index)">
-              x
-            </button>
-          </div>
-
-          <button type="button" class="aspect-square rounded-lg border-2 border-dashed border-gray-200 text-gray-400 transition-colors hover:border-gray-400 hover:text-gray-500" @click="openGalleryPicker">
-            +
-          </button>
-        </div>
+        <fieldset class="space-y-1">
+          <legend class="block text-sm font-medium text-gray-700">Tags</legend>
+          <TagCombobox ref="tagComboboxRef" v-model="selectedTags" />
+        </fieldset>
       </div>
 
       <div class="space-y-3 border-t border-slate-200 bg-slate-50/70 px-5 pb-5 pt-4 dark:border-slate-700 dark:bg-slate-800/70 sm:px-6">
@@ -167,7 +115,7 @@
             Hủy
           </button>
           <button type="submit" class="rounded-md bg-gray-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-600 disabled:opacity-60 dark:bg-sky-500 dark:text-slate-950 dark:hover:bg-sky-400" :disabled="pending || uploadingMedia || processingMedia">
-            {{ processingMedia ? "Đang xử lý video..." : uploadingMedia ? "Đang tải media..." : pending ? (mode === 'create' ? 'Đang tạo...' : 'Đang lưu...') : mode === 'create' ? 'Tạo bài viết' : 'Lưu thay đổi' }}
+            {{ processingMedia ? "Đang xử lý video..." : uploadingMedia ? "Đang tải ảnh trong nội dung..." : pending ? (mode === 'create' ? 'Đang tạo...' : 'Đang lưu...') : mode === 'create' ? 'Tạo bài viết' : 'Lưu thay đổi' }}
           </button>
         </div>
       </div>
@@ -178,7 +126,7 @@
 
 <script setup lang="ts">
 import type { TagOption } from "~~/shared/types";
-import { nameContentFile, nameGalleryFile } from "~~/shared/media-naming";
+import { nameContentFile } from "~~/shared/media-naming";
 
 const props = defineProps<{
   mode: "create" | "edit";
@@ -191,30 +139,21 @@ const props = defineProps<{
 }>();
 
 type CategoryOption = { id?: number; document_id: string; name: string; sort_order?: number; parent?: number | string | null };
-type ExistingMedia = { id: number; url: string; mime?: string | null; alternativeText?: string | null };
 
 const auth = useAuth();
 const router = useRouter();
 const title = ref(props.initialTitle ?? "");
 const content = ref(props.initialContent ?? "<p></p>");
-const activeTab = ref<"content" | "images">("content");
 const showToolbar = ref(true);
 const loadingPost = ref(props.mode === "edit" && !props.initialTitle);
 const loadingCategories = ref(false);
 const categories = ref<CategoryOption[]>([]);
 const selectedCategories = ref<string[]>(props.initialCategories ?? []);
 const selectedTags = ref<TagOption[]>(props.initialTags ?? []);
-const existingMedia = ref<ExistingMedia[]>(props.initialImages ?? []);
-const removedMediaIds = ref<Set<number>>(new Set());
-const newMediaFiles = ref<File[]>([]);
-const newMediaPreviews = ref<string[]>([]);
 const uploadingMedia = ref(false);
-const processingGallery = ref(false);
 const processingMedia = ref(false);
 const categoryMenuOpen = ref(false);
 const categoryMenuEl = ref<HTMLElement | null>(null);
-const fileInputEl = ref<HTMLInputElement | null>(null);
-const cameraFileInputEl = ref<HTMLInputElement | null>(null);
 const tagComboboxRef = ref<{ commitPending: () => Promise<void> } | null>(null);
 const pendingMediaMap: Record<string, File | undefined> = {};
 const pending = ref(false);
@@ -223,8 +162,6 @@ const fieldErrors = ref<{ title?: string; categories?: string; content?: string 
 let categoryOutsideHandler: ((event: MouseEvent) => void) | null = null;
 
 const MAX_WIDTH = 1280;
-const MAX_IMAGE_SIZE = 5 * 1024 * 1024;
-const MAX_VIDEO_SIZE = 200 * 1024 * 1024;
 const MIN_TITLE_LENGTH = 8;
 const MAX_TITLE_LENGTH = 120;
 const MIN_CONTENT_LENGTH = 30;
@@ -251,8 +188,6 @@ const categoryTreeOptions = computed(() => {
 });
 
 const selectedCategoryItems = computed(() => categoryTreeOptions.value.filter((item) => selectedCategories.value.includes(item.value)));
-const visibleExistingMedia = computed(() => existingMedia.value.filter((item) => !removedMediaIds.value.has(item.id)));
-const totalMediaCount = computed(() => visibleExistingMedia.value.length + newMediaFiles.value.length);
 const contentPlainText = computed(() => content.value.replace(/<[^>]*>/g, " ").replace(/&nbsp;/g, " ").replace(/\s+/g, " ").trim());
 const contentCharacterCount = computed(() => contentPlainText.value.length);
 
@@ -293,25 +228,6 @@ watch(
     selectedTags.value = value ?? [];
   },
 );
-watch(
-  () => props.initialImages,
-  (value) => {
-    existingMedia.value = value ?? [];
-  },
-);
-
-watch(
-  newMediaFiles,
-  (value, _oldValue, onCleanup) => {
-    const urls = value.map((file) => URL.createObjectURL(file));
-    newMediaPreviews.value = urls;
-    onCleanup(() => {
-      urls.forEach((url) => URL.revokeObjectURL(url));
-    });
-  },
-  { immediate: true },
-);
-
 async function loadCategories() {
   loadingCategories.value = true;
   try {
@@ -334,18 +250,6 @@ function toggleCategory(documentId: string) {
 
 function handleMediaPicked(blobUrl: string, file: File) {
   pendingMediaMap[blobUrl] = file;
-}
-
-function resolveMediaUrl(url: string) {
-  return url.startsWith("http://") || url.startsWith("https://") ? url : `${useRuntimeConfig().public.apiUrl}${url}`;
-}
-
-function openGalleryPicker() {
-  if (window.innerWidth >= 768) {
-    fileInputEl.value?.click();
-    return;
-  }
-  cameraFileInputEl.value?.click();
 }
 
 async function resizeToMaxWidth(file: File, maxWidth: number): Promise<File> {
@@ -391,33 +295,6 @@ async function resizeToMaxWidth(file: File, maxWidth: number): Promise<File> {
   });
 }
 
-async function handleFileSelect(event: Event) {
-  const input = event.currentTarget as HTMLInputElement;
-  const allFiles = Array.from(input.files ?? []);
-  if (fileInputEl.value) fileInputEl.value.value = "";
-  if (cameraFileInputEl.value) cameraFileInputEl.value.value = "";
-
-  const valid = allFiles.filter((file) => {
-    if (file.type.startsWith("image/")) return file.size <= MAX_IMAGE_SIZE;
-    if (file.type.startsWith("video/")) return file.size <= MAX_VIDEO_SIZE;
-    return false;
-  });
-  if (valid.length === 0) return;
-
-  processingGallery.value = true;
-  try {
-    const processed = await Promise.all(
-      valid.map(async (file) => {
-        const renamed = nameGalleryFile(file);
-        return file.type.startsWith("image/") ? await resizeToMaxWidth(renamed, MAX_WIDTH) : renamed;
-      }),
-    );
-    newMediaFiles.value = [...newMediaFiles.value, ...processed];
-  } finally {
-    processingGallery.value = false;
-  }
-}
-
 function getTitleError() {
   const trimmed = title.value.trim();
   if (!trimmed) return "Vui lòng nhập tiêu đề bài viết.";
@@ -458,24 +335,11 @@ async function submit() {
   await tagComboboxRef.value?.commitPending();
   if (!validateForm()) {
     error.value = "Vui lòng sửa các trường được đánh dấu trước khi lưu bài viết.";
-    activeTab.value = fieldErrors.value.content || fieldErrors.value.title || fieldErrors.value.categories ? "content" : activeTab.value;
     return;
   }
   pending.value = true;
   error.value = "";
   try {
-    let newUploadedIds: number[] = [];
-    if (newMediaFiles.value.length > 0) {
-      uploadingMedia.value = true;
-      const formData = new FormData();
-      newMediaFiles.value.forEach((file) => formData.append("files", file, file.name));
-      const uploadRes = await auth.authorizedFetch("/api/upload-proxy", { method: "POST", body: formData });
-      if (!uploadRes.ok) throw new Error("Tải media lên thất bại");
-      const uploadPayload = (await uploadRes.json().catch(() => [])) as Array<{ id?: number }>;
-      newUploadedIds = uploadPayload.map((item) => item.id).filter((id): id is number => typeof id === "number");
-      uploadingMedia.value = false;
-    }
-
     let submittableContent = content.value;
     const blobMatches = [...new Set([...submittableContent.matchAll(/blob:[^"'\s)>]+/g)].map((match) => match[0]))];
     const mediaEntries = blobMatches.map((url) => [url, pendingMediaMap[url]] as [string, File | undefined]).filter((entry): entry is [string, File] => !!entry[1]);
@@ -501,8 +365,6 @@ async function submit() {
       uploadingMedia.value = false;
     }
 
-    const imageIds = props.mode === "edit" ? [...visibleExistingMedia.value.map((item) => item.id), ...newUploadedIds] : newUploadedIds;
-
     const response = await auth.authorizedFetch("/api/my-posts-proxy", {
       method: props.mode === "create" ? "POST" : "PUT",
       headers: { "Content-Type": "application/json" },
@@ -512,7 +374,6 @@ async function submit() {
         content: submittableContent,
         categories: selectedCategories.value,
         tags: selectedTags.value.map((tag) => tag.documentId),
-        imageIds,
       }),
     });
 
@@ -525,7 +386,6 @@ async function submit() {
     pending.value = false;
     uploadingMedia.value = false;
     processingMedia.value = false;
-    processingGallery.value = false;
   }
 }
 
