@@ -29,18 +29,36 @@ const props = defineProps<{
   authorUsername?: string;
 }>();
 
-const posts = ref<Post[]>(props.initialPosts ?? []);
-const total = ref(props.initialTotal ?? 0);
-const page = ref(1);
+const feedKey = computed(() => {
+  if (props.categorySlug) return `category:${props.categorySlug}`;
+  if (props.tagSlug) return `tag:${props.tagSlug}`;
+  if (props.authorUsername) return `author:${props.authorUsername}`;
+  return "home";
+});
+
+const posts = useState<Post[]>(`infinite-posts:${feedKey.value}:items`, () => [...(props.initialPosts ?? [])]);
+const total = useState<number>(`infinite-posts:${feedKey.value}:total`, () => props.initialTotal ?? 0);
+const page = useState<number>(`infinite-posts:${feedKey.value}:page`, () => 1);
 const pending = ref(false);
 
+function resetFromInitial() {
+  posts.value = [...(props.initialPosts ?? [])];
+  total.value = props.initialTotal ?? 0;
+  page.value = 1;
+}
+
 watch(
-  () => [props.initialPosts, props.initialTotal],
+  () => [props.initialPosts, props.initialTotal, feedKey.value],
   () => {
-    posts.value = [...(props.initialPosts ?? [])];
-    total.value = props.initialTotal ?? 0;
-    page.value = 1;
+    if (posts.value.length === 0) {
+      resetFromInitial();
+      return;
+    }
+    if (page.value <= 1 && posts.value.length <= (props.initialPosts ?? []).length) {
+      resetFromInitial();
+    }
   },
+  { immediate: true },
 );
 
 const canLoadMore = computed(() => posts.value.length < total.value);
@@ -62,13 +80,4 @@ async function loadMore() {
   total.value = response.meta?.pagination?.total ?? total.value;
   page.value = nextPage;
 }
-
-watch(
-  () => [props.categorySlug, props.tagSlug, props.authorUsername],
-  () => {
-    posts.value = [...(props.initialPosts ?? [])];
-    total.value = props.initialTotal ?? 0;
-    page.value = 1;
-  },
-);
 </script>
