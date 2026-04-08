@@ -40,12 +40,17 @@ const scrollBootScript = `
     const reveal = () => {
       delete document.documentElement.dataset.scrollRestoring;
     };
-    requestAnimationFrame(() => {
-      window.scrollTo(0, top);
-      requestAnimationFrame(reveal);
-    });
-    window.addEventListener('load', reveal, { once: true });
-    window.setTimeout(reveal, 400);
+    const feedRestoreNeeded = window.sessionStorage.getItem('trekky:feed-restore-needed');
+    if (feedRestoreNeeded) {
+      window.setTimeout(reveal, 2000);
+    } else {
+      requestAnimationFrame(() => {
+        window.scrollTo(0, top);
+        requestAnimationFrame(reveal);
+      });
+      window.addEventListener('load', reveal, { once: true });
+      window.setTimeout(reveal, 1500);
+    }
   } catch {}
 })();
 `;

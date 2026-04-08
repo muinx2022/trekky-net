@@ -34,6 +34,7 @@ type StoredFeedState = {
   posts: Post[];
   total: number;
   page: number;
+  historyPosition?: number;
 };
 
 const feedKey = computed(() => {
@@ -77,6 +78,13 @@ function restoreFromSession() {
   try {
     const stored = JSON.parse(raw) as StoredFeedState;
     if (!Array.isArray(stored.posts) || typeof stored.total !== "number" || typeof stored.page !== "number") return;
+    const currentPosition = (window.history.state as { position?: number } | null)?.position ?? 0;
+    if (stored.historyPosition !== undefined && stored.historyPosition !== currentPosition) {
+      window.sessionStorage.removeItem(storageKey.value);
+      window.sessionStorage.removeItem(scrollStorageKey.value);
+      window.sessionStorage.removeItem("trekky:feed-restore-needed");
+      return;
+    }
     posts.value = stored.posts;
     total.value = stored.total;
     page.value = stored.page;
@@ -107,8 +115,14 @@ watch(
       posts: posts.value,
       total: total.value,
       page: page.value,
+      historyPosition: (window.history.state as { position?: number } | null)?.position ?? 0,
     };
     window.sessionStorage.setItem(storageKey.value, JSON.stringify(payload));
+    if (page.value > 1) {
+      window.sessionStorage.setItem("trekky:feed-restore-needed", "1");
+    } else {
+      window.sessionStorage.removeItem("trekky:feed-restore-needed");
+    }
   },
   { deep: true },
 );
@@ -117,7 +131,13 @@ onMounted(async () => {
   restoreFromSession();
   await nextTick();
   restoreScrollPosition();
-  requestAnimationFrame(() => restoreScrollPosition());
+  requestAnimationFrame(() => {
+    restoreScrollPosition();
+    requestAnimationFrame(() => {
+      delete document.documentElement.dataset.scrollRestoring;
+      window.sessionStorage.removeItem("trekky:feed-restore-needed");
+    });
+  });
   window.addEventListener("scroll", saveScrollPosition, { passive: true });
   window.addEventListener("pagehide", saveScrollPosition);
 });
