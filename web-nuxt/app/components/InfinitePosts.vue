@@ -47,6 +47,7 @@ const total = useState<number>(`infinite-posts:${feedKey.value}:total`, () => pr
 const page = useState<number>(`infinite-posts:${feedKey.value}:page`, () => 1);
 const pending = ref(false);
 const storageKey = computed(() => `trekky:infinite-posts:${feedKey.value}`);
+const scrollStorageKey = computed(() => `${storageKey.value}:scroll-y`);
 
 function resetFromInitial() {
   posts.value = [...(props.initialPosts ?? [])];
@@ -83,6 +84,20 @@ function restoreFromSession() {
   }
 }
 
+function saveScrollPosition() {
+  if (!import.meta.client) return;
+  window.sessionStorage.setItem(scrollStorageKey.value, String(window.scrollY));
+}
+
+function restoreScrollPosition() {
+  if (!import.meta.client) return;
+  const raw = window.sessionStorage.getItem(scrollStorageKey.value);
+  if (!raw) return;
+  const top = Number(raw);
+  if (!Number.isFinite(top) || top <= 0) return;
+  window.scrollTo({ top, behavior: "auto" });
+}
+
 watch(
   () => [posts.value, total.value, page.value, storageKey.value],
   () => {
@@ -97,8 +112,19 @@ watch(
   { deep: true },
 );
 
-onMounted(() => {
+onMounted(async () => {
   restoreFromSession();
+  await nextTick();
+  restoreScrollPosition();
+  requestAnimationFrame(() => restoreScrollPosition());
+  window.addEventListener("scroll", saveScrollPosition, { passive: true });
+  window.addEventListener("pagehide", saveScrollPosition);
+});
+
+onBeforeUnmount(() => {
+  saveScrollPosition();
+  window.removeEventListener("scroll", saveScrollPosition);
+  window.removeEventListener("pagehide", saveScrollPosition);
 });
 
 const canLoadMore = computed(() => posts.value.length < total.value);
