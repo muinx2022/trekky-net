@@ -49,6 +49,7 @@ DEFAULT_CONTENT_PROMPT = (
     "Dua tren Category va Scenario, hay tu suy luan intent phu hop roi viet bai bang tieng Viet tu nhien, moc, giong user-generated content. "
     "Khong viet kieu quang cao, khong giong AI, khong qua hoa my. "
     "Tra ve JSON hop le voi cac key: title, excerpt, body_text, related_tags, image_search_queries, media_mode. "
+    'media_mode phai luon la "body". Neu co anh thi anh chi duoc chen vao body/content, khong duoc dua vao gallery rieng. '
     "body_text nen gon, de doc, khoang 160-280 tu, uu tien 2 hoac 3 paragraph ro rang, moi paragraph 2-4 cau, khong viet qua dai. "
     "related_tags la mang 2-4 tag tieng Viet, uu tien tag pho bien, ngan, co the tai su dung cho nhieu bai, khong qua niche. "
     "image_search_queries la mang 5-8 query tieng Anh, uu tien phone photo, smartphone photo, candid, casual travel snapshot, local life, real-life travel moment; tranh anh professional, DSLR, editorial, luxury, studio."
@@ -199,9 +200,7 @@ def normalize_content_payload(payload: dict, scenario: str, preferred_media_mode
     if not image_search_queries:
         title = normalized_title or scenario
         image_search_queries = [title, scenario]
-    media_mode = str(payload.get("media_mode") or payload.get("mediaMode") or preferred_media_mode or MediaMode.BODY).strip().lower()
-    if media_mode not in {MediaMode.BODY, MediaMode.GALLERY}:
-        media_mode = MediaMode.BODY
+    media_mode = MediaMode.BODY
     if not normalized_title:
         raise ValueError("AI content payload missing title")
     if not normalized_body:
@@ -282,7 +281,7 @@ def generate_content_payload(settings: AIAutomationSettings, category: Category,
                     "Rewrite the following AI post payload into valid JSON with these exact keys only: "
                     "title, excerpt, body_text, related_tags, image_search_queries, media_mode. "
                     "Rules: title and body_text are required; related_tags and image_search_queries must be arrays; "
-                    'media_mode must be either "body" or "gallery". Return JSON only.\n'
+                    'media_mode must be exactly "body"; images must be intended for the post body/content only, never gallery. Return JSON only.\n'
                     f"Scenario: {scenario}\n"
                     f"Original payload:\n{strip_json_fence(text) if 'text' in locals() else ''}"
                 )

@@ -25,14 +25,14 @@
       </div>
     </div>
 
-    <div v-if="contentImages.length" class="space-y-3 px-6 pb-5">
+    <div v-if="galleryImages.length" class="space-y-3 px-6 pb-5">
       <button type="button" class="block overflow-hidden rounded-2xl bg-slate-100" aria-label="Mở ảnh lớn" @click="lightboxIndex = activeImageIndex">
         <img :src="activeImage.src" :alt="activeImage.alt ?? ''" class="max-h-[540px] w-full object-cover" draggable="false" />
       </button>
 
-      <div v-if="contentImages.length > 1" class="grid grid-cols-4 gap-2 sm:grid-cols-5 md:grid-cols-6">
+      <div v-if="galleryImages.length > 1" class="grid grid-cols-4 gap-2 sm:grid-cols-5 md:grid-cols-6">
         <button
-          v-for="(image, index) in contentImages"
+          v-for="(image, index) in galleryImages"
           :key="`${image.src}-${index}`"
           type="button"
           class="aspect-square overflow-hidden rounded-lg border-2 transition"
@@ -74,7 +74,7 @@
 
   <Lightbox
     v-if="lightboxIndex !== null"
-    :images="contentImages"
+    :images="galleryImages"
     :index="lightboxIndex"
     @close="lightboxIndex = null"
     @navigate="(index) => (lightboxIndex = index)"
@@ -123,12 +123,28 @@ const formattedDate = computed(() => {
 });
 const description = computed(() => truncate(stripHtml(post.value?.content ?? ""), 160));
 const contentImages = computed(() => extractImagesFromHtml(post.value?.content ?? "", config.public.apiUrl));
+const postGalleryImages = computed(() =>
+  (post.value?.images ?? [])
+    .filter((item) => item.url && !item.mime?.startsWith("video/"))
+    .map((item) => ({
+      src: toAbsoluteMediaUrl(item.url, config.public.apiUrl) ?? item.url,
+      alt: item.alternativeText ?? undefined,
+    })),
+);
+const galleryImages = computed(() => {
+  const seen = new Set<string>();
+  return [...contentImages.value, ...postGalleryImages.value].filter((item) => {
+    if (!item.src || seen.has(item.src)) return false;
+    seen.add(item.src);
+    return true;
+  });
+});
 const contentWithoutImages = computed(() => stripImagesFromHtml(post.value?.content ?? ""));
 const activeImageIndex = ref(0);
 const lightboxIndex = ref<number | null>(null);
-const activeImage = computed(() => contentImages.value[activeImageIndex.value] ?? contentImages.value[0] ?? { src: "", alt: "" });
+const activeImage = computed(() => galleryImages.value[activeImageIndex.value] ?? galleryImages.value[0] ?? { src: "", alt: "" });
 const imageUrl = computed(
-  () => contentImages.value[0]?.src ?? toAbsoluteMediaUrl(post.value?.images?.[0]?.url, config.public.apiUrl) ?? extractFirstImageFromHtml(post.value?.content ?? "", config.public.apiUrl),
+  () => galleryImages.value[0]?.src ?? extractFirstImageFromHtml(post.value?.content ?? "", config.public.apiUrl),
 );
 const canonicalUrl = computed(() => buildCanonicalUrl(`/p/${canonicalId}`, config.public.siteUrl));
 const ogImage = computed(() => buildOgImages(imageUrl.value, config.public.siteUrl, post.value.title)[0]);
@@ -151,7 +167,7 @@ const breadcrumbSchema = computed(() =>
 );
 
 watch(
-  contentImages,
+  galleryImages,
   () => {
     activeImageIndex.value = 0;
     lightboxIndex.value = null;

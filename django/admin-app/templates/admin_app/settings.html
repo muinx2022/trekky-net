@@ -56,7 +56,7 @@
                 <div class="col-12 col-md-6">
                   <div class="p-3 border rounded-2 h-100">
                     <div class="fw-semibold mb-1">AI Content</div>
-                    <div class="text-secondary small">Lên lịch tạo bài viết tự động: chọn chuyên mục, cron schedule, số bài mỗi lần chạy, prompt nội dung và cách chèn ảnh.</div>
+                    <div class="text-secondary small">Lên lịch tạo bài viết tự động: chọn chuyên mục, cron schedule, số bài mỗi lần chạy, prompt nội dung và cách chèn ảnh trực tiếp vào content.</div>
                   </div>
                 </div>
                 <div class="col-12 col-md-6">
@@ -95,7 +95,7 @@
             <div class="tab-pane fade" id="settings-ai-content" role="tabpanel" aria-labelledby="settings-ai-content-tab" tabindex="0">
               <div class="settings-pane-head">
                 <h2>AI Content</h2>
-                <p>Control scheduled post generation, selected categories, prompts, and media placement.</p>
+                <p>Control scheduled post generation, selected categories, prompts, and how AI embeds images directly inside post content.</p>
                 <div class="mt-3">
                   <button type="submit" class="btn btn-outline-primary btn-sm" name="action" value="run_ai_content_test">Test Run Post Content</button>
                 </div>
@@ -168,8 +168,8 @@
                     {% if ai_form.content_image_count_max.errors %}<div class="text-danger small mt-2">{{ ai_form.content_image_count_max.errors|join:", " }}</div>{% endif %}
                   </div>
                   <div class="col-12">
-                    <label class="form-label fw-semibold" for="{{ ai_form.content_preferred_media_mode.id_for_label }}">{{ ai_form.content_preferred_media_mode.label }}</label>
                     {{ ai_form.content_preferred_media_mode }}
+                    <div class="form-text">AI sẽ chỉ chèn ảnh vào trong nội dung bài viết. Gallery riêng không còn được sử dụng cho AI posts.</div>
                     {% if ai_form.content_preferred_media_mode.errors %}<div class="text-danger small mt-2">{{ ai_form.content_preferred_media_mode.errors|join:", " }}</div>{% endif %}
                   </div>
                 </div>

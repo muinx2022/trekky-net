@@ -6,6 +6,7 @@ from trekky_apps.content.models import Comment, Page, Post
 from trekky_apps.content.post_media_service import get_post_media_assets, sync_post_media
 from trekky_apps.engagement.models import Report
 from trekky_apps.integrations.models import AIAutomationSettings, EmailAuthSettings, GA4AnalyticsSettings, GoogleOAuthSettings, MediaStorageSettings
+from trekky_apps.integrations.models import MediaMode
 from trekky_apps.moderation.models import ModeratorCategoryAssignment
 from trekky_apps.taxonomy.models import Category, Tag
 from trekky_apps.common.models import trekky_slugify
@@ -337,6 +338,8 @@ class AISettingsForm(BootstrapFormMixin, forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.fields["content_preferred_media_mode"].initial = MediaMode.BODY
+        self.fields["content_preferred_media_mode"].widget = forms.HiddenInput()
         for json_field in ("openai_models", "anthropic_models"):
             initial = self.initial.get(json_field, getattr(self.instance, json_field, []))
             if isinstance(initial, list):
@@ -353,6 +356,9 @@ class AISettingsForm(BootstrapFormMixin, forms.ModelForm):
         if isinstance(raw, list):
             return raw
         return [line.strip() for line in str(raw).splitlines() if line.strip()]
+
+    def clean_content_preferred_media_mode(self):
+        return MediaMode.BODY
 
 
 class GoogleOAuthSettingsForm(BootstrapFormMixin, forms.ModelForm):
