@@ -32,10 +32,20 @@ const scrollBootScript = `
     if (!raw) return;
     const top = Number(raw);
     if (!Number.isFinite(top) || top <= 0) return;
+    document.documentElement.dataset.scrollRestoring = '1';
     if ('scrollRestoration' in window.history) {
       window.history.scrollRestoration = 'manual';
     }
     window.scrollTo(0, top);
+    const reveal = () => {
+      delete document.documentElement.dataset.scrollRestoring;
+    };
+    requestAnimationFrame(() => {
+      window.scrollTo(0, top);
+      requestAnimationFrame(reveal);
+    });
+    window.addEventListener('load', reveal, { once: true });
+    window.setTimeout(reveal, 400);
   } catch {}
 })();
 `;
@@ -93,6 +103,12 @@ useHead({
     {
       name: "twitter:creator",
       content: TWITTER_HANDLE,
+    },
+  ],
+  style: [
+    {
+      key: "scroll-restore-style",
+      innerHTML: "html[data-scroll-restoring='1'] body { opacity: 0; }",
     },
   ],
   script: [
