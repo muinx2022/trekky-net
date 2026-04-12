@@ -6,14 +6,13 @@
       Không có bài viết nào.
     </div>
 
-    <div v-if="canLoadMore" class="flex justify-center pt-2">
-      <button
-        class="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
-        :disabled="pending"
-        @click="loadMore"
-      >
-        {{ pending ? "Đang tải..." : "Xem thêm" }}
-      </button>
+    <div
+      v-if="canLoadMore || pending"
+      ref="loadTrigger"
+      class="flex min-h-16 items-center justify-center pt-2 text-sm text-slate-500"
+      aria-live="polite"
+    >
+      <span v-if="pending">Đang tải thêm bài viết...</span>
     </div>
   </div>
 </template>
@@ -48,8 +47,10 @@ const posts = useState<Post[]>(`infinite-posts:${feedKey.value}:items`, () => [.
 const total = useState<number>(`infinite-posts:${feedKey.value}:total`, () => props.initialTotal ?? 0);
 const page = useState<number>(`infinite-posts:${feedKey.value}:page`, () => 1);
 const pending = ref(false);
+const loadTrigger = ref<HTMLElement | null>(null);
 const storageKey = computed(() => `trekky:infinite-posts:${feedKey.value}`);
 const scrollStorageKey = computed(() => `trekky:scroll:${route.fullPath}`);
+let loadObserver: IntersectionObserver | null = null;
 
 function resetFromInitial() {
   posts.value = [...(props.initialPosts ?? [])];
@@ -127,6 +128,44 @@ watch(
   { deep: true },
 );
 
+const canLoadMore = computed(() => posts.value.length < total.value);
+
+function teardownLoadObserver() {
+  loadObserver?.disconnect();
+  loadObserver = null;
+}
+
+function setupLoadObserver() {
+  if (!import.meta.client) return;
+  teardownLoadObserver();
+  if (!loadTrigger.value || !("IntersectionObserver" in window) || !canLoadMore.value) return;
+  loadObserver = new IntersectionObserver(
+    (entries) => {
+      const entry = entries[0];
+      if (!entry?.isIntersecting || pending.value || !canLoadMore.value) return;
+      void loadMore();
+    },
+    {
+      rootMargin: "0px 0px 320px 0px",
+    },
+  );
+  loadObserver.observe(loadTrigger.value);
+}
+
+watch(loadTrigger, async () => {
+  await nextTick();
+  setupLoadObserver();
+});
+
+watch(canLoadMore, async (value) => {
+  if (!value) {
+    teardownLoadObserver();
+    return;
+  }
+  await nextTick();
+  setupLoadObserver();
+});
+
 onMounted(async () => {
   restoreFromSession();
   await nextTick();
@@ -140,17 +179,19 @@ onMounted(async () => {
   });
   window.addEventListener("scroll", saveScrollPosition, { passive: true });
   window.addEventListener("pagehide", saveScrollPosition);
+  setupLoadObserver();
 });
 
 onBeforeUnmount(() => {
   saveScrollPosition();
   window.removeEventListener("scroll", saveScrollPosition);
   window.removeEventListener("pagehide", saveScrollPosition);
+  teardownLoadObserver();
 });
 
-const canLoadMore = computed(() => posts.value.length < total.value);
-
 async function loadMore() {
+  if (pending.value || !canLoadMore.value) return;
+
   pending.value = true;
   const nextPage = page.value + 1;
   const query = new URLSearchParams({
@@ -160,11 +201,17 @@ async function loadMore() {
   if (props.categorySlug) query.set("category", props.categorySlug);
   if (props.tagSlug) query.set("tag", props.tagSlug);
   if (props.authorUsername) query.set("author", props.authorUsername);
+
   const response = await $fetch<PaginatedResponse<Post>>(`/api/posts-proxy?${query.toString()}`).catch(() => null);
+
   pending.value = false;
   if (!response) return;
+
   posts.value = [...posts.value, ...(response.data ?? [])];
   total.value = response.meta?.pagination?.total ?? total.value;
   page.value = nextPage;
+
+  await nextTick();
+  setupLoadObserver();
 }
 </script>
